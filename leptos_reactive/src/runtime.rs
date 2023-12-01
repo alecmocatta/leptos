@@ -871,6 +871,23 @@ pub fn try_with_owner<T>(
     })?
 }
 
+/// Runs the given code with no owner.
+pub fn try_with_no_owner<T>(
+    f: impl FnOnce() -> T,
+) -> Result<T, ReactiveSystemError> {
+    with_runtime(|runtime| {
+        let prev_observer = runtime.observer.take();
+        let prev_owner = runtime.owner.take();
+
+        let v = f();
+
+        runtime.observer.set(prev_observer);
+        runtime.owner.set(prev_owner);
+
+        v
+    })
+}
+
 /// Runs the given function as a child of the current Owner, once.
 pub fn run_as_child<T>(f: impl FnOnce() -> T + 'static) -> T {
     let owner = with_runtime(|runtime| runtime.owner.get())
