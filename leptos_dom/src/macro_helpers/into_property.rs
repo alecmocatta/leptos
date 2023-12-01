@@ -1,6 +1,7 @@
 #[cfg(not(feature = "nightly"))]
 use leptos_reactive::{
-    MaybeProp, MaybeSignal, Memo, ReadSignal, RwSignal, Signal, SignalGet,
+    MaybeProp, MaybeSignal, Memo, MemoNodedup, ReadSignal, RwSignal, Signal,
+    SignalGet,
 };
 use wasm_bindgen::JsValue;
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
@@ -133,6 +134,7 @@ prop_type!(bool);
 prop_signal_type!(ReadSignal<T>);
 prop_signal_type!(RwSignal<T>);
 prop_signal_type!(Memo<T>);
+prop_signal_type!(MemoNodedup<T>);
 prop_signal_type!(Signal<T>);
 prop_signal_type!(MaybeSignal<T>);
 prop_signal_type_optional!(MaybeProp<T>);

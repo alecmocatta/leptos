@@ -40,6 +40,7 @@ pub(crate) enum ReactiveNodeType {
     Trigger,
     Signal,
     Memo { f: Rc<dyn AnyComputation> },
+    MemoNodedup { f: Rc<dyn AnyComputation> },
     Effect { f: Rc<dyn AnyComputation> },
 }
 

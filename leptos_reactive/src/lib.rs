@@ -92,6 +92,7 @@ mod hydration;
 #[doc(hidden)]
 pub mod macros;
 mod memo;
+mod memo_nodedup;
 mod node;
 pub mod oco;
 mod resource;
@@ -116,6 +117,7 @@ pub use diagnostics::SpecialNonReactiveZone;
 pub use effect::*;
 pub use hydration::{FragmentData, SharedContext};
 pub use memo::*;
+pub use memo_nodedup::*;
 pub use node::Disposer;
 pub use oco::*;
 pub use resource::*;
@@ -125,8 +127,8 @@ pub use runtime::{
     on_cleanup, run_as_child, set_current_runtime,
     spawn_local_with_current_owner, spawn_local_with_owner,
     try_spawn_local_with_current_owner, try_spawn_local_with_owner,
-    try_with_owner, untrack, untrack_with_diagnostics, with_current_owner,
-    with_owner, Owner, RuntimeId, ScopedFuture,
+    try_with_no_owner, try_with_owner, untrack, untrack_with_diagnostics,
+    with_current_owner, with_owner, Owner, RuntimeId, ScopedFuture,
 };
 pub use selector::*;
 pub use serialization::*;
