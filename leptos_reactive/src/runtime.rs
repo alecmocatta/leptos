@@ -124,6 +124,148 @@ impl Owner {
     }
 }
 
+/// Keeps track of a reactive scope.
+///
+/// It can be empty, or any node in the reactive graph.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Scope(Option<Owner>);
+impl Scope {
+    /// An empty [Scope], using this scope will leak all children.
+    pub const LEAK: Self = Self(None);
+
+    /// The current [Scope]. Analogous to [Owner::current].
+    pub fn current() -> Self {
+        Self(Owner::current())
+    }
+
+    /// Creates a child [Scope]. When the parent is disposed of, this will be too.
+    ///
+    /// ## Panics
+    /// Panics if there is no current reactive runtime.
+    pub fn new_child(self) -> Self {
+        Self::try_new_child(self).expect("runtime should be alive when run")
+    }
+    /// Creates a child [Scope]. When the parent is disposed of, this will be too.
+    pub fn try_new_child(self) -> Result<Self, ReactiveSystemError> {
+        self.try_with_owner(|| {
+            let id = with_runtime(|runtime| {
+                let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
+                    value: None,
+                    state: ReactiveNodeState::Clean,
+                    node_type: ReactiveNodeType::Trigger,
+                });
+                runtime.push_scope_property(ScopeProperty::Trigger(id));
+                id
+            })?;
+            Ok(Self(Some(Owner(id))))
+        })?
+    }
+
+    /// Runs the given code with this reactive [Scope] as the [Owner].
+    ///
+    /// WARNING: this only replaces the [Owner]. Also see [Scope::with_owner_and_observer].
+    pub fn with_owner<T>(self, f: impl FnOnce() -> T) -> T {
+        self.try_with_owner(f)
+            .expect("runtime should be alive when run")
+    }
+    /// Runs the given code with this reactive [Scope] as the [Owner].
+    ///
+    /// WARNING: this only replaces the [Owner]. Also see [Scope::try_with_owner_and_observer].
+    ///
+    /// ## Panics
+    /// Panics if there is no current reactive runtime.
+    pub fn try_with_owner<T>(
+        self,
+        f: impl FnOnce() -> T,
+    ) -> Result<T, ReactiveSystemError> {
+        match self.0 {
+            Some(owner) => with_runtime(|runtime| {
+                let scope_exists = {
+                    let nodes = runtime
+                        .nodes
+                        .try_borrow()
+                        .map_err(ReactiveSystemError::Borrow)?;
+                    nodes.contains_key(owner.0)
+                };
+                if scope_exists {
+                    let prev_owner = runtime.owner.take();
+
+                    runtime.owner.set(Some(owner.0));
+
+                    let v = f();
+
+                    runtime.owner.set(prev_owner);
+
+                    Ok(v)
+                } else {
+                    Err(ReactiveSystemError::OwnerDisposed(owner))
+                }
+            })?,
+            None => with_runtime(|runtime| {
+                let prev_owner = runtime.owner.take();
+
+                runtime.owner.set(None);
+
+                let v = f();
+
+                runtime.owner.set(prev_owner);
+
+                Ok(v)
+            })?,
+        }
+    }
+
+    /// Runs the given code with this reactive [Scope] as the [Owner] and observer.
+    ///
+    /// WARNING: this replaces both the [Owner] and observer. Also see [Scope::try_with_owner].
+    pub fn with_owner_and_observer<T>(self, f: impl FnOnce() -> T) -> T {
+        self.try_with_owner_and_observer(f)
+            .expect("runtime should be alive when run")
+    }
+    /// Runs the given code with this reactive [Scope] as the [Owner] and observer.
+    ///
+    /// WARNING: this replaces both the [Owner] and observer. Also see [Scope::try_with_owner].
+    ///
+    /// ## Panics
+    /// Panics if there is no current reactive runtime.
+    pub fn try_with_owner_and_observer<T>(
+        self,
+        f: impl FnOnce() -> T,
+    ) -> Result<T, ReactiveSystemError> {
+        match self.0 {
+            Some(owner) => try_with_owner(owner, f),
+            None => with_runtime(|runtime| {
+                let prev_observer = runtime.observer.take();
+                let prev_owner = runtime.owner.take();
+
+                let v = f();
+
+                runtime.observer.set(prev_observer);
+                runtime.owner.set(prev_owner);
+
+                v
+            }),
+        }
+    }
+    /// Disposes of the [Scope] and all its children.
+    ///
+    /// ## Panics
+    /// Panics if there is no current reactive runtime.
+    pub fn dispose(self) {
+        self.try_dispose()
+            .expect("runtime should be alive when run")
+    }
+    /// Disposes of the [Scope] and all its children.
+    pub fn try_dispose(self) -> Result<(), ReactiveSystemError> {
+        match self.0 {
+            Some(Owner(id)) => with_runtime(|runtime| {
+                runtime.dispose_node(id);
+            }),
+            None => Ok(()),
+        }
+    }
+}
+
 // This core Runtime impl block handles all the work of marking and updating
 // the reactive graph.
 //
@@ -818,7 +960,7 @@ where
     }
 }
 
-/// Runs the given code with the given reactive owner.
+/// Runs the given code with the given reactive owner (as both owner and observer).
 ///
 /// ## Panics
 /// Panics if there is no current reactive runtime.
@@ -836,7 +978,7 @@ pub enum ReactiveSystemError {
     Borrow(std::cell::BorrowError),
 }
 
-/// Runs the given code with the given reactive owner.
+/// Runs the given code with the given reactive owner (as both owner and observer).
 pub fn try_with_owner<T>(
     owner: Owner,
     f: impl FnOnce() -> T,
@@ -850,18 +992,7 @@ pub fn try_with_owner<T>(
             nodes.contains_key(owner.0)
         };
         if scope_exists {
-            let prev_observer = runtime.observer.take();
-            let prev_owner = runtime.owner.take();
-
-            runtime.owner.set(Some(owner.0));
-            runtime.observer.set(Some(owner.0));
-
-            let v = f();
-
-            runtime.observer.set(prev_observer);
-            runtime.owner.set(prev_owner);
-
-            Ok(v)
+            Ok(runtime.with_observer(owner.0, f))
         } else {
             Err(ReactiveSystemError::OwnerDisposed(owner))
         }

@@ -129,8 +129,8 @@ pub use runtime::{
     on_cleanup, run_as_child, set_current_runtime,
     spawn_local_with_current_owner, spawn_local_with_owner, try_batch,
     try_spawn_local_with_current_owner, try_spawn_local_with_owner,
-    try_with_no_owner, try_with_owner, untrack, untrack_with_diagnostics,
-    with_current_owner, with_owner, Owner, RuntimeId, ScopedFuture,
+    try_with_owner, untrack, untrack_with_diagnostics, with_current_owner,
+    with_owner, Owner, RuntimeId, Scope, ScopedFuture,
 };
 pub use selector::*;
 pub use serialization::*;
