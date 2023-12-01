@@ -5,9 +5,10 @@ use crate::{
     node::{
         Disposer, NodeId, ReactiveNode, ReactiveNodeState, ReactiveNodeType,
     },
-    AnyComputation, AnyResource, EffectState, Memo, MemoState, ReadSignal,
-    ResourceId, ResourceState, RwSignal, SerializableResource, StoredValueId,
-    Trigger, UnserializableResource, WriteSignal,
+    AnyComputation, AnyResource, EffectState, Memo, MemoNodedup,
+    MemoNodedupState, MemoState, ReadSignal, ResourceId, ResourceState,
+    RwSignal, SerializableResource, StoredValueId, Trigger,
+    UnserializableResource, WriteSignal,
 };
 use cfg_if::cfg_if;
 use core::hash::BuildHasherDefault;
@@ -223,6 +224,7 @@ impl Runtime {
             let changed = match node.node_type {
                 ReactiveNodeType::Signal | ReactiveNodeType::Trigger => true,
                 ReactiveNodeType::Memo { ref f }
+                | ReactiveNodeType::MemoNodedup { ref f }
                 | ReactiveNodeType::Effect { ref f } => {
                     let value = node.value();
                     // set this node as the observer
@@ -1105,6 +1107,25 @@ impl RuntimeId {
         .expect("tried to create a memo in a runtime that has been disposed")
     }
 
+    pub(crate) fn create_concrete_memo_nodedup(
+        self,
+        value: Rc<RefCell<dyn Any>>,
+        computation: Rc<dyn AnyComputation>,
+    ) -> NodeId {
+        with_runtime(|runtime| {
+            let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
+                value: Some(value),
+                // memos are lazy, so are dirty when created
+                // will be run the first time we ask for it
+                state: ReactiveNodeState::Dirty,
+                node_type: ReactiveNodeType::MemoNodedup { f: computation },
+            });
+            runtime.push_scope_property(ScopeProperty::Effect(id));
+            id
+        })
+        .expect("tried to create a memo in a runtime that has been disposed")
+    }
+
     #[track_caller]
     #[inline(always)]
     pub(crate) fn create_effect<T>(
@@ -1212,6 +1233,31 @@ impl RuntimeId {
             id: self.create_concrete_memo(
                 Rc::new(RefCell::new(None::<T>)),
                 Rc::new(MemoState {
+                    f,
+                    t: PhantomData,
+                    #[cfg(any(debug_assertions, feature = "ssr"))]
+                    defined_at: std::panic::Location::caller(),
+                }),
+            ),
+            ty: PhantomData,
+            #[cfg(any(debug_assertions, feature = "ssr"))]
+            defined_at: std::panic::Location::caller(),
+        }
+    }
+
+    #[track_caller]
+    #[inline(always)]
+    pub(crate) fn create_memo_nodedup<T>(
+        self,
+        f: impl Fn(Option<&T>) -> T + 'static,
+    ) -> MemoNodedup<T>
+    where
+        T: Any + 'static,
+    {
+        MemoNodedup {
+            id: self.create_concrete_memo_nodedup(
+                Rc::new(RefCell::new(None::<T>)),
+                Rc::new(MemoNodedupState {
                     f,
                     t: PhantomData,
                     #[cfg(any(debug_assertions, feature = "ssr"))]
