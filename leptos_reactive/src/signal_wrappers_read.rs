@@ -1,7 +1,8 @@
 use crate::{
     create_isomorphic_effect, on_cleanup, runtime::untrack, store_value, Memo,
-    Oco, ReadSignal, RwSignal, SignalDispose, SignalGet, SignalGetUntracked,
-    SignalStream, SignalWith, SignalWithUntracked, StoredValue,
+    MemoNodedup, Oco, ReadSignal, RwSignal, SignalDispose, SignalGet,
+    SignalGetUntracked, SignalStream, SignalWith, SignalWithUntracked,
+    StoredValue,
 };
 use std::{borrow::Cow, fmt::Debug, rc::Rc};
 
@@ -36,7 +37,7 @@ where
 }
 
 /// A wrapper for any kind of readable reactive signal: a [`ReadSignal`](crate::ReadSignal),
-/// [`Memo`](crate::Memo), [`RwSignal`](crate::RwSignal), or derived signal closure.
+/// [`Memo`](crate::Memo), [`MemoNodedup`](crate::MemoNodedup) [`RwSignal`](crate::RwSignal), or derived signal closure.
 ///
 /// This allows you to create APIs that take any kind of `Signal<T>` as an argument,
 /// rather than adding a generic `F: Fn() -> T`. Values can be access with the same
@@ -131,6 +132,7 @@ impl<T: Clone> SignalGetUntracked for Signal<T> {
         match &self.inner {
             SignalTypes::ReadSignal(s) => s.get_untracked(),
             SignalTypes::Memo(m) => m.get_untracked(),
+            SignalTypes::MemoNodedup(m) => m.get_untracked(),
             SignalTypes::DerivedSignal(f) => untrack(|| f.with_value(|f| f())),
         }
     }
@@ -151,6 +153,7 @@ impl<T: Clone> SignalGetUntracked for Signal<T> {
         match &self.inner {
             SignalTypes::ReadSignal(s) => s.try_get_untracked(),
             SignalTypes::Memo(m) => m.try_get_untracked(),
+            SignalTypes::MemoNodedup(m) => m.try_get_untracked(),
             SignalTypes::DerivedSignal(f) => {
                 untrack(|| f.try_with_value(|f| f()))
             }
@@ -177,6 +180,7 @@ impl<T> SignalWithUntracked for Signal<T> {
         match &self.inner {
             SignalTypes::ReadSignal(s) => s.with_untracked(f),
             SignalTypes::Memo(s) => s.with_untracked(f),
+            SignalTypes::MemoNodedup(s) => s.with_untracked(f),
             SignalTypes::DerivedSignal(v_f) => {
                 let mut o = None;
 
@@ -203,6 +207,7 @@ impl<T> SignalWithUntracked for Signal<T> {
         match self.inner {
             SignalTypes::ReadSignal(r) => r.try_with_untracked(f),
             SignalTypes::Memo(m) => m.try_with_untracked(f),
+            SignalTypes::MemoNodedup(m) => m.try_with_untracked(f),
             SignalTypes::DerivedSignal(s) => {
                 untrack(move || s.try_with_value(|t| f(&t())))
             }
@@ -258,6 +263,7 @@ impl<T> SignalWith for Signal<T> {
         match &self.inner {
             SignalTypes::ReadSignal(s) => s.with(f),
             SignalTypes::Memo(s) => s.with(f),
+            SignalTypes::MemoNodedup(s) => s.with(f),
             SignalTypes::DerivedSignal(s) => f(&s.with_value(|s| s())),
         }
     }
@@ -279,6 +285,7 @@ impl<T> SignalWith for Signal<T> {
             SignalTypes::ReadSignal(r) => r.try_with(f).ok(),
 
             SignalTypes::Memo(m) => m.try_with(f),
+            SignalTypes::MemoNodedup(m) => m.try_with(f),
             SignalTypes::DerivedSignal(s) => s.try_with_value(|t| f(&t())),
         }
     }
@@ -310,6 +317,7 @@ impl<T: Clone> SignalGet for Signal<T> {
         match self.inner {
             SignalTypes::ReadSignal(r) => r.get(),
             SignalTypes::Memo(m) => m.get(),
+            SignalTypes::MemoNodedup(m) => m.get(),
             SignalTypes::DerivedSignal(s) => s.with_value(|t| t()),
         }
     }
@@ -318,6 +326,7 @@ impl<T: Clone> SignalGet for Signal<T> {
         match self.inner {
             SignalTypes::ReadSignal(r) => r.try_get(),
             SignalTypes::Memo(m) => m.try_get(),
+            SignalTypes::MemoNodedup(m) => m.try_get(),
             SignalTypes::DerivedSignal(s) => s.try_with_value(|t| t()),
         }
     }
@@ -328,6 +337,7 @@ impl<T> SignalDispose for Signal<T> {
         match self.inner {
             SignalTypes::ReadSignal(s) => s.dispose(),
             SignalTypes::Memo(m) => m.dispose(),
+            SignalTypes::MemoNodedup(m) => m.dispose(),
             SignalTypes::DerivedSignal(s) => s.dispose(),
         }
     }
@@ -338,6 +348,7 @@ impl<T: Clone> SignalStream<T> for Signal<T> {
         match self.inner {
             SignalTypes::ReadSignal(r) => r.to_stream(),
             SignalTypes::Memo(m) => m.to_stream(),
+            SignalTypes::MemoNodedup(m) => m.to_stream(),
             SignalTypes::DerivedSignal(s) => {
                 let (tx, rx) = futures::channel::mpsc::unbounded();
 
@@ -441,12 +452,24 @@ impl<T> From<Memo<T>> for Signal<T> {
     }
 }
 
+impl<T> From<MemoNodedup<T>> for Signal<T> {
+    #[track_caller]
+    fn from(value: MemoNodedup<T>) -> Self {
+        Self {
+            inner: SignalTypes::MemoNodedup(value),
+            #[cfg(any(debug_assertions, feature = "ssr"))]
+            defined_at: std::panic::Location::caller(),
+        }
+    }
+}
+
 enum SignalTypes<T>
 where
     T: 'static,
 {
     ReadSignal(ReadSignal<T>),
     Memo(Memo<T>),
+    MemoNodedup(MemoNodedup<T>),
     DerivedSignal(StoredValue<Box<dyn Fn() -> T>>),
 }
 
@@ -465,6 +488,9 @@ impl<T> core::fmt::Debug for SignalTypes<T> {
                 f.debug_tuple("ReadSignal").field(arg0).finish()
             }
             Self::Memo(arg0) => f.debug_tuple("Memo").field(arg0).finish(),
+            Self::MemoNodedup(arg0) => {
+                f.debug_tuple("MemoNodedup").field(arg0).finish()
+            }
             Self::DerivedSignal(_) => f.debug_tuple("DerivedSignal").finish(),
         }
     }
@@ -475,6 +501,7 @@ impl<T> PartialEq for SignalTypes<T> {
         match (self, other) {
             (Self::ReadSignal(l0), Self::ReadSignal(r0)) => l0 == r0,
             (Self::Memo(l0), Self::Memo(r0)) => l0 == r0,
+            (Self::MemoNodedup(l0), Self::MemoNodedup(r0)) => l0 == r0,
             (Self::DerivedSignal(l0), Self::DerivedSignal(r0)) => {
                 std::ptr::eq(l0, r0)
             }
@@ -836,6 +863,12 @@ impl<T> From<Memo<T>> for MaybeSignal<T> {
     }
 }
 
+impl<T> From<MemoNodedup<T>> for MaybeSignal<T> {
+    fn from(value: MemoNodedup<T>) -> Self {
+        Self::Dynamic(value.into())
+    }
+}
+
 impl<T> From<Signal<T>> for MaybeSignal<T> {
     fn from(value: Signal<T>) -> Self {
         Self::Dynamic(value)
@@ -856,6 +889,7 @@ mod from_fn_for_signals {
     impl<T> !NotSignalMarker for Signal<T> {}
     impl<T> !NotSignalMarker for ReadSignal<T> {}
     impl<T> !NotSignalMarker for Memo<T> {}
+    impl<T> !NotSignalMarker for MemoNodedup<T> {}
     impl<T> !NotSignalMarker for RwSignal<T> {}
     impl<T> !NotSignalMarker for MaybeSignal<T> {}
 
@@ -1235,6 +1269,12 @@ impl<T> From<Memo<Option<T>>> for MaybeProp<T> {
     }
 }
 
+impl<T> From<MemoNodedup<Option<T>>> for MaybeProp<T> {
+    fn from(value: MemoNodedup<Option<T>>) -> Self {
+        Self(Some(value.into()))
+    }
+}
+
 impl<T> From<Signal<Option<T>>> for MaybeProp<T> {
     fn from(value: Signal<Option<T>>) -> Self {
         Self(Some(value.into()))
@@ -1255,6 +1295,12 @@ impl<T: Clone> From<RwSignal<T>> for MaybeProp<T> {
 
 impl<T: Clone> From<Memo<T>> for MaybeProp<T> {
     fn from(value: Memo<T>) -> Self {
+        Self(Some(MaybeSignal::derive(move || Some(value.get()))))
+    }
+}
+
+impl<T: Clone> From<MemoNodedup<T>> for MaybeProp<T> {
+    fn from(value: MemoNodedup<T>) -> Self {
         Self(Some(MaybeSignal::derive(move || Some(value.get()))))
     }
 }
