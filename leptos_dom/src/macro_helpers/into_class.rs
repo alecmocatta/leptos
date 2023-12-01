@@ -1,6 +1,7 @@
 #[cfg(not(feature = "nightly"))]
 use leptos_reactive::{
-    MaybeProp, MaybeSignal, Memo, ReadSignal, RwSignal, Signal, SignalGet,
+    MaybeProp, MaybeSignal, Memo, MemoNodedup, ReadSignal, RwSignal, Signal,
+    SignalGet,
 };
 
 /// Represents the different possible values a single class on an element could have,
@@ -167,6 +168,7 @@ macro_rules! class_signal_type_optional {
 class_signal_type!(ReadSignal<bool>);
 class_signal_type!(RwSignal<bool>);
 class_signal_type!(Memo<bool>);
+class_signal_type!(MemoNodedup<bool>);
 class_signal_type!(Signal<bool>);
 class_signal_type!(MaybeSignal<bool>);
 class_signal_type_optional!(MaybeProp<bool>);
