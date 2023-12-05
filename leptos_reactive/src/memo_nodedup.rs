@@ -102,11 +102,10 @@ where
 
 impl<T> Copy for MemoNodedup<T> {}
 
-impl<T> fmt::Debug for MemoNodedup<T> {
+impl<T: fmt::Debug> fmt::Debug for MemoNodedup<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut s = f.debug_struct("MemoNodedup");
-        s.field("id", &self.id);
-        s.field("ty", &self.ty);
+        self.with_untracked(|v| s.field("inner", v));
         #[cfg(any(debug_assertions, feature = "ssr"))]
         s.field("defined_at", &self.defined_at);
         s.finish()
