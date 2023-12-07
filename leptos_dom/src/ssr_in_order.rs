@@ -257,6 +257,9 @@ impl View {
             View::Text(node) => {
                 chunks.push_back(StreamChunk::Sync(node.content))
             }
+            View::Comment(node) => chunks.push_back(StreamChunk::Sync(
+                format!("<!--{}-->", node.content).into(),
+            )),
             View::Component(node) => {
                 #[cfg(debug_assertions)]
                 let name = crate::ssr::to_kebab_case(&node.name);
