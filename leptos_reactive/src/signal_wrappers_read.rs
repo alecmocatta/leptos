@@ -489,7 +489,7 @@ impl<T: core::fmt::Debug> core::fmt::Debug for SignalTypes<T> {
             Self::MemoNodedup(arg0) => arg0.fmt(f),
             Self::DerivedSignal(compute) => compute.with_value(|compute| {
                 f.debug_tuple("DerivedSignal")
-                    .field(&untrack(move || compute()))
+                    .field(&untrack(compute))
                     .finish()
             }),
         }
