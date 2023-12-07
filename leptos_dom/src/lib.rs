@@ -433,16 +433,20 @@ impl Element {
     }
 }
 
+/// A html comment node.
+///
+/// Useful as a marker node for custom rendering implementations.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Comment {
+pub struct Comment {
     #[cfg(all(target_arch = "wasm32", feature = "web"))]
     node: web_sys::Node,
     content: Oco<'static, str>,
 }
 
 impl Comment {
+    /// Create a new [Comment].
     #[inline]
-    fn new(
+    pub fn new(
         content: impl Into<Oco<'static, str>>,
         id: &Option<HydrationKey>,
         closing: bool,
@@ -497,6 +501,27 @@ impl Comment {
             }
         }
     }
+
+    /// Access the raw [web_sys] value for the comment.
+    ///
+    /// Return [None] if not in a browser context.
+    pub fn inner(&self) -> Option<&web_sys::Comment> {
+        #[cfg(all(target_arch = "wasm32", feature = "web"))]
+        {
+            Some(self.node.dyn_ref().unwrap())
+        }
+        #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
+        {
+            None
+        }
+    }
+}
+
+impl IntoView for Comment {
+    #[cfg_attr(debug_assertions, instrument(level = "info", name = "#comment", skip_all, fields(content = %self.content)))]
+    fn into_view(self) -> View {
+        View::Comment(self)
+    }
 }
 
 /// HTML text
@@ -548,6 +573,10 @@ pub enum View {
     Element(Element),
     /// HTML text node.
     Text(Text),
+    /// HTML comment node.
+    ///
+    /// Mostly useful as a marker node for custom render implmentations.
+    Comment(Comment),
     /// Custom leptos component.
     Component(ComponentRepr),
     /// leptos core-component.
@@ -564,6 +593,7 @@ impl fmt::Debug for View {
         match self {
             Self::Element(el) => el.fmt(f),
             Self::Text(t) => t.fmt(f),
+            Self::Comment(c) => c.fmt(f),
             Self::Component(c) => c.fmt(f),
             Self::CoreComponent(c) => c.fmt(f),
             Self::Transparent(arg0) => {
@@ -626,6 +656,7 @@ impl Mountable for View {
                 element.element.unchecked_ref::<web_sys::Node>().clone()
             }
             Self::Text(t) => t.node.clone(),
+            Self::Comment(c) => c.node.clone(),
             Self::CoreComponent(c) | Self::Suspense(_, c) => match c {
                 CoreComponent::Unit(u) => u.get_mountable_node(),
                 CoreComponent::DynChild(dc) => dc.get_mountable_node(),
@@ -641,6 +672,7 @@ impl Mountable for View {
     fn get_opening_node(&self) -> web_sys::Node {
         match self {
             Self::Text(t) => t.node.clone(),
+            Self::Comment(c) => c.node.clone(),
             Self::Element(el) => el.element.clone().unchecked_into(),
             Self::CoreComponent(c) | Self::Suspense(_, c) => match c {
                 CoreComponent::DynChild(dc) => dc.get_opening_node(),
@@ -657,6 +689,7 @@ impl Mountable for View {
     fn get_closing_node(&self) -> web_sys::Node {
         match self {
             Self::Text(t) => t.node.clone(),
+            Self::Comment(c) => c.node.clone(),
             Self::Element(el) => el.element.clone().unchecked_into(),
             Self::CoreComponent(c) | Self::Suspense(_, c) => match c {
                 CoreComponent::DynChild(dc) => dc.get_closing_node(),
@@ -678,6 +711,7 @@ impl View {
             Self::Component(..) => "Component",
             Self::Element(..) => "Element",
             Self::Text(..) => "Text",
+            Self::Comment(..) => "Comment",
             Self::CoreComponent(c) => match c {
                 CoreComponent::DynChild(..) => "DynChild",
                 CoreComponent::Each(..) => "Each",
