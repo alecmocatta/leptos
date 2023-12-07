@@ -10,7 +10,7 @@ use cfg_if::cfg_if;
 use futures::{stream::FuturesUnordered, Future, Stream, StreamExt};
 use itertools::Itertools;
 use leptos_reactive::*;
-use std::pin::Pin;
+use std::{borrow::Cow, pin::Pin};
 
 type PinnedFuture<T> = Pin<Box<dyn Future<Output = T>>>;
 
@@ -400,6 +400,14 @@ impl View {
                 } else {
                     html_escape::encode_safe(&node.content).to_string().into()
                 }
+            }
+            View::Comment(node) => {
+                let content = if dont_escape_text {
+                    Cow::Borrowed(&*node.content)
+                } else {
+                    html_escape::encode_safe(&node.content)
+                };
+                format!("<!--{content}-->").into()
             }
             View::Component(node) => {
                 let content = || {
