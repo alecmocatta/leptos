@@ -541,6 +541,19 @@ impl Text {
             content,
         }
     }
+    /// Access the raw [web_sys] value for the text.
+    ///
+    /// Return [None] if not in a browser context.
+    pub fn inner(&self) -> Option<&web_sys::Text> {
+        #[cfg(all(target_arch = "wasm32", feature = "web"))]
+        {
+            Some(self.node.dyn_ref().unwrap())
+        }
+        #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
+        {
+            None
+        }
+    }
 }
 
 /// A leptos view which can be mounted to the DOM.
