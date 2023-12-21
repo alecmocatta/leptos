@@ -99,7 +99,7 @@ pub fn AnimatedShow(
     });
 
     view! {
-        <Show when=move || show.get() fallback=|| ()>
+        <Show when=move || show.get() fallback=crate::View::default>
             <div class=move || cls.get()>{children()}</div>
         </Show>
     }

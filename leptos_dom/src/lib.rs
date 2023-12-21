@@ -96,16 +96,6 @@ pub trait Mountable {
     fn get_closing_node(&self) -> web_sys::Node;
 }
 
-impl IntoView for () {
-    #[cfg_attr(
-        any(debug_assertions, feature = "ssr"),
-        instrument(level = "info", name = "<() />", skip_all)
-    )]
-    fn into_view(self) -> View {
-        Unit.into_view()
-    }
-}
-
 impl<T> IntoView for Option<T>
 where
     T: IntoView,
