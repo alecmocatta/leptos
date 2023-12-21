@@ -821,7 +821,7 @@ where
     }
 }
 
-/// Runs the given code with the given reactive owner.
+/// Runs the given code with the given reactive owner (as both owner and observer).
 ///
 /// ## Panics
 /// Panics if there is no current reactive runtime.
@@ -839,7 +839,7 @@ pub enum ReactiveSystemError {
     Borrow(std::cell::BorrowError),
 }
 
-/// Runs the given code with the given reactive owner.
+/// Runs the given code with the given reactive owner (as both owner and observer).
 pub fn try_with_owner<T>(
     owner: Owner,
     f: impl FnOnce() -> T,
@@ -853,18 +853,7 @@ pub fn try_with_owner<T>(
             nodes.contains_key(owner.0)
         };
         if scope_exists {
-            let prev_observer = runtime.observer.take();
-            let prev_owner = runtime.owner.take();
-
-            runtime.owner.set(Some(owner.0));
-            runtime.observer.set(Some(owner.0));
-
-            let v = f();
-
-            runtime.observer.set(prev_observer);
-            runtime.owner.set(prev_owner);
-
-            Ok(v)
+            Ok(runtime.with_observer(owner.0, f))
         } else {
             Err(ReactiveSystemError::OwnerDisposed(owner))
         }
