@@ -14,6 +14,7 @@ fn Component(
     _ = strip_option;
     _ = default;
     _ = into;
+    View::default()
 }
 
 #[test]

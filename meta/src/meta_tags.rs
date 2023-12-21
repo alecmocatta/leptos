@@ -60,4 +60,6 @@ pub fn Meta(
     });
 
     meta.tags.register(id.into(), builder_el.into_any());
+
+    leptos::View::default()
 }

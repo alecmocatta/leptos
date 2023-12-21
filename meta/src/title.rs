@@ -145,6 +145,8 @@ pub fn Title(
 
                 el.set_text_content(Some(&text));
             });
+
+            View::default()
         } else {
             if let Some(formatter) = formatter {
                 *meta.title.formatter.borrow_mut() = Some(formatter);
@@ -152,6 +154,8 @@ pub fn Title(
             if let Some(text) = text {
                 *meta.title.text.borrow_mut() = Some(text);
             }
+
+            View::default()
         }
     }
 }
