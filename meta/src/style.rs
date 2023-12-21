@@ -83,4 +83,6 @@ pub fn Style(
     };
 
     meta.tags.register(id, builder_el.into_any());
+
+    View::default()
 }

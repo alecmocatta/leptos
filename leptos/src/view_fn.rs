@@ -8,7 +8,7 @@ pub struct ViewFn(Rc<dyn Fn() -> View>);
 
 impl Default for ViewFn {
     fn default() -> Self {
-        Self(Rc::new(|| ().into_view()))
+        Self(Rc::new(View::default))
     }
 }
 

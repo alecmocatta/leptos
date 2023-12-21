@@ -124,7 +124,7 @@ where
                         );
                     }
                 }
-                ().into_view()
+                crate::View::default()
             }
         }
     }
