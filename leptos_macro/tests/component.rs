@@ -16,6 +16,7 @@ fn Component(
     _ = default;
     _ = into;
     _ = impl_trait;
+    View::default()
 }
 
 #[test]

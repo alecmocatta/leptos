@@ -65,10 +65,12 @@ pub fn Portal(
                 }
             })
         });
+        crate::View::default()
     } else {
         let _ = mount;
         let _ = use_shadow;
         let _ = is_svg;
         let _ = children;
+        crate::View::default()
     }}
 }

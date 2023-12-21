@@ -137,11 +137,15 @@ pub fn Body(
             for (name, value) in attributes {
                 leptos::leptos_dom::attribute_helper(el.unchecked_ref(), name.into(), value);
             }
+
+            View::default()
         } else if #[cfg(feature = "ssr")] {
             let meta = crate::use_head();
             *meta.body.class.borrow_mut() = class;
             *meta.body.id.borrow_mut() = id;
             meta.body.attributes.borrow_mut().extend(attributes);
+
+            View::default()
         } else {
             _ = class;
             _ = id;
@@ -149,6 +153,8 @@ pub fn Body(
 
             #[cfg(debug_assertions)]
             crate::feature_warning();
+
+            View::default()
         }
     }
 }

@@ -40,6 +40,7 @@ where
     // redirect on the server
     if let Some(redirect_fn) = use_context::<ServerRedirectFunction>() {
         (redirect_fn.f)(&path);
+        leptos::View::default()
     }
     // redirect on the client
     else {
@@ -56,6 +57,7 @@ where
                  just means that your root route is a redirect.)"
             );
         }
+        leptos::View::default()
     }
 }
 
