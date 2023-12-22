@@ -782,11 +782,10 @@ impl<T: fmt::Debug> fmt::Debug for ReadSignal<T> {
     }
 }
 
-impl<T> Eq for ReadSignal<T> {}
-
-impl<T> PartialEq for ReadSignal<T> {
+impl<T: Eq> Eq for ReadSignal<T> {}
+impl<T: PartialEq> PartialEq for ReadSignal<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.with(|self_| other.with(|other| self_ == other))
     }
 }
 
@@ -1105,13 +1104,12 @@ impl<T> fmt::Debug for WriteSignal<T> {
     }
 }
 
-impl<T> Eq for WriteSignal<T> {}
-
-impl<T> PartialEq for WriteSignal<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
+// impl<T> Eq for WriteSignal<T> {}
+// impl<T> PartialEq for WriteSignal<T> {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.id == other.id
+//     }
+// }
 
 impl<T> Hash for WriteSignal<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -1233,11 +1231,10 @@ impl<T: fmt::Debug> fmt::Debug for RwSignal<T> {
     }
 }
 
-impl<T> Eq for RwSignal<T> {}
-
-impl<T> PartialEq for RwSignal<T> {
+impl<T: Eq> Eq for RwSignal<T> {}
+impl<T: PartialEq> PartialEq for RwSignal<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
+        self.with(|self_| other.with(|other| self_ == other))
     }
 }
 

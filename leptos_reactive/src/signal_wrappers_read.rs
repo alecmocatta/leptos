@@ -102,11 +102,10 @@ impl<T: core::fmt::Debug> core::fmt::Debug for Signal<T> {
     }
 }
 
-impl<T> Eq for Signal<T> {}
-
-impl<T> PartialEq for Signal<T> {
+impl<T: Eq> Eq for Signal<T> {}
+impl<T: PartialEq> PartialEq for Signal<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.with(|self_| other.with(|other| self_ == other))
     }
 }
 
@@ -496,21 +495,21 @@ impl<T: core::fmt::Debug> core::fmt::Debug for SignalTypes<T> {
     }
 }
 
-impl<T> PartialEq for SignalTypes<T> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::ReadSignal(l0), Self::ReadSignal(r0)) => l0 == r0,
-            (Self::Memo(l0), Self::Memo(r0)) => l0 == r0,
-            (Self::MemoNodedup(l0), Self::MemoNodedup(r0)) => l0 == r0,
-            (Self::DerivedSignal(l0), Self::DerivedSignal(r0)) => {
-                std::ptr::eq(l0, r0)
-            }
-            _ => false,
-        }
-    }
-}
+// impl<T> PartialEq for SignalTypes<T> {
+//     fn eq(&self, other: &Self) -> bool {
+//         match (self, other) {
+//             (Self::ReadSignal(l0), Self::ReadSignal(r0)) => l0 == r0,
+//             (Self::Memo(l0), Self::Memo(r0)) => l0 == r0,
+//             (Self::MemoNodedup(l0), Self::MemoNodedup(r0)) => l0 == r0,
+//             (Self::DerivedSignal(l0), Self::DerivedSignal(r0)) => {
+//                 std::ptr::eq(l0, r0)
+//             }
+//             _ => false,
+//         }
+//     }
+// }
 
-impl<T> Eq for SignalTypes<T> where T: PartialEq {}
+// impl<T> Eq for SignalTypes<T> where T: PartialEq {}
 
 /// A wrapper for a value that is *either* `T` or [`Signal<T>`](crate::Signal).
 ///
