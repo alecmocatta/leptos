@@ -57,7 +57,7 @@ where
 /// assert_eq!(count.get(), 8);
 /// # runtime.dispose();
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct SignalSetter<T>
 where
     T: 'static,
@@ -249,19 +249,19 @@ where
     }
 }
 
-impl<T> PartialEq for SignalSetterTypes<T>
-where
-    T: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Write(l0), Self::Write(r0)) => l0 == r0,
-            (Self::Mapped(l0), Self::Mapped(r0)) => std::ptr::eq(l0, r0),
-            _ => false,
-        }
-    }
-}
+// impl<T> PartialEq for SignalSetterTypes<T>
+// where
+//     T: PartialEq,
+// {
+//     fn eq(&self, other: &Self) -> bool {
+//         match (self, other) {
+//             (Self::Write(l0), Self::Write(r0)) => l0 == r0,
+//             (Self::Mapped(l0), Self::Mapped(r0)) => std::ptr::eq(l0, r0),
+//             _ => false,
+//         }
+//     }
+// }
 
-impl<T> Eq for SignalSetterTypes<T> where T: PartialEq {}
+// impl<T> Eq for SignalSetterTypes<T> where T: PartialEq {}
 
 impl_set_fn_traits![SignalSetter];
