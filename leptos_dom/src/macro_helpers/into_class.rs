@@ -116,6 +116,11 @@ pub(crate) fn class_expression(
 ) {
     use crate::HydrationCtx;
 
+    if class_name == "" {
+        // crate::warn!("[HtmlElement::class()] Skipping empty class.");
+        return;
+    }
+
     if force || !HydrationCtx::is_hydrating() {
         let class_name = wasm_bindgen::intern(class_name);
 
