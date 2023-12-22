@@ -91,7 +91,7 @@ pub fn Router(
     children()
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct SetIsRouting(pub SignalSetter<bool>);
 
 /// Context type that contains information about the current router state.
