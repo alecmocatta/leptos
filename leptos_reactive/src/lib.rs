@@ -130,7 +130,7 @@ pub use runtime::{
     spawn_local_with_current_owner, spawn_local_with_owner, try_batch,
     try_spawn_local_with_current_owner, try_spawn_local_with_owner,
     try_with_owner, untrack, untrack_with_diagnostics, with_current_owner,
-    with_owner, Owner, RuntimeId, Scope, ScopedFuture,
+    with_owner, Owner, ReactiveSystemError, RuntimeId, Scope, ScopedFuture,
 };
 pub use selector::*;
 pub use serialization::*;
