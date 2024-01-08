@@ -980,12 +980,16 @@ pub fn with_owner<T>(owner: Owner, f: impl FnOnce() -> T) -> T {
     try_with_owner(owner, f).unwrap()
 }
 
+/// Covers the errors that might arise from accessing the resources in the reactive system.
 #[derive(Error, Debug)]
 pub enum ReactiveSystemError {
+    /// The runtime is not available.
     #[error("Runtime {0:?} has been disposed.")]
     RuntimeDisposed(RuntimeId),
+    /// The owner is not available.
     #[error("Owner {0:?} has been disposed.")]
     OwnerDisposed(Owner),
+    /// Can't access the reactive graph.
     #[error("Error borrowing runtime.nodes {0:?}")]
     Borrow(std::cell::BorrowError),
 }
