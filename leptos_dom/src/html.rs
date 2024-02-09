@@ -1426,6 +1426,7 @@ macro_rules! generate_html_tags {
         }
 
         impl Default for [<$tag:camel $($trailing_)?>] {
+            #[track_caller]
           fn default() -> Self {
             let id = HydrationCtx::id();
 
@@ -1512,6 +1513,7 @@ macro_rules! generate_html_tags {
             )
             )
         )]
+        #[track_caller]
         pub fn $tag() -> HtmlElement<[<$tag:camel $($trailing_)?>]> {
           HtmlElement::new( [<$tag:camel $($trailing_)?>]::default())
         }
@@ -1528,6 +1530,7 @@ macro_rules! generate_html_tags {
 }
 
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
+#[track_caller]
 fn create_leptos_element(
     #[allow(unused)] tag: &str,
     #[allow(unused)] id: Option<HydrationKey>,
