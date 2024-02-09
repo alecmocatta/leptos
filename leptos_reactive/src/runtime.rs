@@ -142,6 +142,7 @@ impl Scope {
     ///
     /// ## Panics
     /// Panics if there is no current reactive runtime.
+    #[track_caller]
     pub fn new_child(self) -> Self {
         Self::try_new_child(self).expect("runtime should be alive when run")
     }
@@ -162,6 +163,7 @@ impl Scope {
     /// Runs the given code with this reactive [Scope] as the [Owner].
     ///
     /// WARNING: this only replaces the [Owner]. Also see [Scope::with_owner_and_observer].
+    #[track_caller]
     pub fn with_owner<T>(self, f: impl FnOnce() -> T) -> T {
         self.try_with_owner(f)
             .expect("runtime should be alive when run")
@@ -216,6 +218,7 @@ impl Scope {
     /// Runs the given code with this reactive [Scope] as the [Owner] and observer.
     ///
     /// WARNING: this replaces both the [Owner] and observer. Also see [Scope::try_with_owner].
+    #[track_caller]
     pub fn with_owner_and_observer<T>(self, f: impl FnOnce() -> T) -> T {
         self.try_with_owner_and_observer(f)
             .expect("runtime should be alive when run")
@@ -249,6 +252,7 @@ impl Scope {
     ///
     /// ## Panics
     /// Panics if there is no current reactive runtime.
+    #[track_caller]
     pub fn dispose(self) {
         self.try_dispose()
             .expect("runtime should be alive when run")
@@ -840,6 +844,7 @@ impl Debug for Runtime {
     instrument(level = "trace", skip_all,)
 )]
 #[inline(always)] // it monomorphizes anyway
+#[track_caller]
 pub(crate) fn with_runtime<T>(
     f: impl FnOnce(&Runtime) -> T,
 ) -> Result<T, ReactiveSystemError> {
@@ -947,6 +952,7 @@ where
 ///
 /// ## Panics
 /// Panics if there is no current reactive runtime.
+#[track_caller]
 pub fn with_current_owner<T, U>(f: impl Fn(T) -> U + 'static) -> impl Fn(T) -> U
 where
     T: 'static,
@@ -976,6 +982,7 @@ where
 ///
 /// ## Panics
 /// Panics if there is no current reactive runtime.
+#[track_caller]
 pub fn with_owner<T>(owner: Owner, f: impl FnOnce() -> T) -> T {
     try_with_owner(owner, f).unwrap()
 }
@@ -1140,6 +1147,7 @@ impl RuntimeId {
         }
     }
 
+    #[track_caller]
     pub(crate) fn create_concrete_signal(
         self,
         value: Rc<RefCell<dyn Any>>,
@@ -1202,6 +1210,7 @@ impl RuntimeId {
         }
     }
 
+    #[track_caller]
     pub(crate) fn create_concrete_effect(
         self,
         value: Rc<RefCell<dyn Any>>,
@@ -1240,6 +1249,7 @@ impl RuntimeId {
         .expect("tried to create a memo in a runtime that has been disposed")
     }
 
+    #[track_caller]
     pub(crate) fn create_concrete_memo_nodedup(
         self,
         value: Rc<RefCell<dyn Any>>,
