@@ -84,6 +84,7 @@ extern crate tracing;
 mod signal;
 pub mod callback;
 mod context;
+mod signal_ext;
 #[macro_use]
 mod diagnostics;
 mod effect;
@@ -135,6 +136,7 @@ pub use runtime::{
 pub use selector::*;
 pub use serialization::*;
 pub use signal::{prelude as signal_prelude, *};
+pub use signal_ext::*;
 pub use signal_wrappers_read::*;
 pub use signal_wrappers_write::*;
 pub use slice::*;
