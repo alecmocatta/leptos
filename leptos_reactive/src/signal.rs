@@ -789,10 +789,9 @@ impl<T: PartialEq> PartialEq for ReadSignal<T> {
     }
 }
 
-impl<T> Hash for ReadSignal<T> {
+impl<T: Hash> Hash for ReadSignal<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Runtime::current().hash(state);
-        self.id.hash(state);
+        self.with(|v| v.hash(state));
     }
 }
 
@@ -1111,12 +1110,12 @@ impl<T> fmt::Debug for WriteSignal<T> {
 //     }
 // }
 
-impl<T> Hash for WriteSignal<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        Runtime::current().hash(state);
-        self.id.hash(state);
-    }
-}
+// impl<T> Hash for WriteSignal<T> {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         Runtime::current().hash(state);
+//         self.id.hash(state);
+//     }
+// }
 
 /// Creates a reactive signal with the getter and setter unified in one value.
 /// You may prefer this style, or it may be easier to pass around in a context
@@ -1238,10 +1237,9 @@ impl<T: PartialEq> PartialEq for RwSignal<T> {
     }
 }
 
-impl<T> Hash for RwSignal<T> {
+impl<T: Hash> Hash for RwSignal<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Runtime::current().hash(state);
-        self.id.hash(state);
+        self.with(|v| v.hash(state));
     }
 }
 

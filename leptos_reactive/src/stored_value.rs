@@ -1,4 +1,4 @@
-use crate::{with_runtime, Runtime, ScopeProperty};
+use crate::{with_runtime, ScopeProperty};
 use std::{
     cell::RefCell,
     fmt,
@@ -60,10 +60,9 @@ impl<T> PartialEq for StoredValue<T> {
     }
 }
 
-impl<T> Hash for StoredValue<T> {
+impl<T: Hash> Hash for StoredValue<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Runtime::current().hash(state);
-        self.id.hash(state);
+        self.with_value(|v| v.hash(state));
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::{
-    create_rw_signal, store_value, Runtime, RwSignal, Scope, Signal,
-    SignalDispose, SignalGet, SignalGetUntracked, SignalSet, SignalUpdate,
-    SignalWith, SignalWithUntracked,
+    create_rw_signal, store_value, RwSignal, Scope, Signal, SignalDispose,
+    SignalGet, SignalGetUntracked, SignalSet, SignalUpdate, SignalWith,
+    SignalWithUntracked,
 };
 use std::{
     hash::{Hash, Hasher},
@@ -42,10 +42,9 @@ impl<T: 'static> Clone for LeakedRwSignal<T> {
         Self(self.0)
     }
 }
-impl<T: 'static> Hash for LeakedRwSignal<T> {
+impl<T: Hash + 'static> Hash for LeakedRwSignal<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Runtime::current().hash(state);
-        self.id.hash(state);
+        self.with(|v| v.hash(state));
     }
 }
 impl<T: 'static> Deref for LeakedRwSignal<T> {
@@ -114,7 +113,7 @@ impl<T: 'static> Clone for RcSignal<T> {
         }
     }
 }
-impl<T: 'static> Hash for RcSignal<T> {
+impl<T: Hash + 'static> Hash for RcSignal<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.inner.0.hash(state);
     }
