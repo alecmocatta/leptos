@@ -16,7 +16,7 @@ use std::{
 /// or the runtime itself is disposed of.
 ///
 /// Useful to statically guarantee a global signal is not disposed of accidentally.
-#[derive(PartialEq, Eq, Default, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct LeakedRwSignal<T: 'static>(RwSignal<T>);
 impl<T: 'static> LeakedRwSignal<T> {
     /// Creates a new [LeakedRwSignal], see type docs for more.
@@ -43,6 +43,11 @@ impl<T: 'static> Deref for LeakedRwSignal<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl<T: Default + 'static> Default for LeakedRwSignal<T> {
+    fn default() -> Self {
+        Self::new(T::default())
     }
 }
 impl<T: 'static> From<LeakedRwSignal<T>> for Signal<T> {
