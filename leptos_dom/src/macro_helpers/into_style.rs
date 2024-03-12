@@ -1,9 +1,9 @@
-use leptos_reactive::Oco;
 #[cfg(not(feature = "nightly"))]
 use leptos_reactive::{
     MaybeProp, MaybeSignal, Memo, MemoNodedup, ReadSignal, RwSignal, Signal,
     SignalGet,
 };
+use leptos_reactive::{Oco, RcSignal};
 use std::{borrow::Cow, rc::Rc};
 
 /// todo docs
@@ -345,6 +345,7 @@ style_type!(char);
 
 style_signal_type!(ReadSignal<T>);
 style_signal_type!(RwSignal<T>);
+style_signal_type!(RcSignal<T>);
 style_signal_type!(Memo<T>);
 style_signal_type!(MemoNodedup<T>);
 style_signal_type!(Signal<T>);
