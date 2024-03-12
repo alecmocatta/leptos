@@ -1,7 +1,7 @@
 use crate::{
     create_rw_signal, store_value, RwSignal, Scope, Signal, SignalDispose,
-    SignalGet, SignalGetUntracked, SignalSet, SignalUpdate, SignalWith,
-    SignalWithUntracked,
+    SignalGet, SignalGetUntracked, SignalSet, SignalSetUntracked, SignalUpdate,
+    SignalUpdateUntracked, SignalWith, SignalWithUntracked,
 };
 use std::{
     hash::{Hash, Hasher},
@@ -158,22 +158,38 @@ impl<T: 'static> SignalSet for RcSignal<T> {
         self.inner.0.try_set(new_value)
     }
 }
+impl<T: 'static> SignalSetUntracked<T> for RcSignal<T> {
+    fn set_untracked(&self, new_value: T) {
+        self.inner.0.set_untracked(new_value);
+    }
+
+    fn try_set_untracked(&self, new_value: T) -> Option<T> {
+        self.inner.0.try_set_untracked(new_value)
+    }
+}
 impl<T: Clone + 'static> SignalUpdate for RcSignal<T> {
     type Value = T;
 
     fn update(&self, f: impl FnOnce(&mut Self::Value)) {
-        let mut v = self.get_untracked();
-        f(&mut v);
-        self.inner.0.set(v);
+        self.inner.0.update(f);
     }
 
     fn try_update<O>(
         &self,
         f: impl FnOnce(&mut Self::Value) -> O,
     ) -> Option<O> {
-        let mut v = self.try_get_untracked()?;
-        let ret = f(&mut v);
-        self.inner.0.set(v);
-        Some(ret)
+        self.inner.0.try_update(f)
+    }
+}
+impl<T: Clone + 'static> SignalUpdateUntracked<T> for RcSignal<T> {
+    fn update_untracked(&self, f: impl FnOnce(&mut T)) {
+        self.inner.0.update_untracked(f);
+    }
+
+    fn try_update_untracked<O>(
+        &self,
+        f: impl FnOnce(&mut T) -> O,
+    ) -> Option<O> {
+        self.inner.0.try_update_untracked(f)
     }
 }
