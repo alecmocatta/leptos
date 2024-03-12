@@ -3,7 +3,7 @@ use leptos_reactive::{
     MaybeProp, MaybeSignal, Memo, MemoNodedup, ReadSignal, RwSignal, Signal,
     SignalGet,
 };
-use leptos_reactive::{Oco, TextProp};
+use leptos_reactive::{Oco, RcSignal, TextProp};
 use std::{borrow::Cow, rc::Rc};
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use wasm_bindgen::UnwrapThrowExt;
@@ -305,6 +305,7 @@ attr_type!(char);
 
 attr_signal_type!(ReadSignal<T>);
 attr_signal_type!(RwSignal<T>);
+attr_signal_type!(RcSignal<T>);
 attr_signal_type!(Memo<T>);
 attr_signal_type!(MemoNodedup<T>);
 attr_signal_type!(Signal<T>);

@@ -1,3 +1,4 @@
+use leptos_reactive::RcSignal;
 #[cfg(not(feature = "nightly"))]
 use leptos_reactive::{
     MaybeProp, MaybeSignal, Memo, MemoNodedup, ReadSignal, RwSignal, Signal,
@@ -172,6 +173,7 @@ macro_rules! class_signal_type_optional {
 
 class_signal_type!(ReadSignal<bool>);
 class_signal_type!(RwSignal<bool>);
+class_signal_type!(RcSignal<bool>);
 class_signal_type!(Memo<bool>);
 class_signal_type!(MemoNodedup<bool>);
 class_signal_type!(Signal<bool>);
