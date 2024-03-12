@@ -4,10 +4,26 @@ use crate::{
     SignalUpdateUntracked, SignalWith, SignalWithUntracked,
 };
 use std::{
+    cell::Cell,
     hash::{Hash, Hasher},
     ops::Deref,
     rc::Rc,
 };
+
+thread_local! {
+    static INTENTIONAL_LEAK: Cell<bool> = Cell::new(false);
+}
+
+pub(super) fn leaking_intentionally() -> bool {
+    INTENTIONAL_LEAK.get()
+}
+fn with_intentional_leak<Out>(f: impl FnOnce() -> Out) -> Out {
+    let old = INTENTIONAL_LEAK.replace(true);
+    let ret = f();
+    let is_true = INTENTIONAL_LEAK.replace(old);
+    debug_assert!(is_true);
+    ret
+}
 
 /// A leaked [RwSignal].
 /// It is important that there are no ways to construct this without leaking it, including during deserialisation.
@@ -23,7 +39,9 @@ impl<T: 'static> LeakedRwSignal<T> {
     #[inline(always)]
     #[track_caller]
     pub fn new(value: T) -> Self {
-        Self(Scope::LEAK.with_owner(move || create_rw_signal(value)))
+        with_intentional_leak(|| {
+            Self(Scope::LEAK.with_owner(move || create_rw_signal(value)))
+        })
     }
 }
 impl<T: 'static> Copy for LeakedRwSignal<T> {}
