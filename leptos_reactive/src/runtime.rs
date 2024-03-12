@@ -672,7 +672,7 @@ impl Runtime {
                 let mut owners = self.node_owners.borrow_mut();
                 owners.insert(node, owner);
             }
-        } else {
+        } else if !crate::signal_more::leaking_intentionally() {
             crate::macros::debug_warn!(
                 "At {defined_at}, you are creating a reactive value outside \
                  the reactive root.",
