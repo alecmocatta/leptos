@@ -32,7 +32,7 @@ fn with_intentional_leak<Out>(f: impl FnOnce() -> Out) -> Out {
 /// or the runtime itself is disposed of.
 ///
 /// Useful to statically guarantee a global signal is not disposed of accidentally.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 pub struct LeakedRwSignal<T: 'static>(RwSignal<T>);
 impl<T: 'static> LeakedRwSignal<T> {
     /// Creates a new [LeakedRwSignal], see type docs for more.
@@ -42,6 +42,15 @@ impl<T: 'static> LeakedRwSignal<T> {
         with_intentional_leak(|| {
             Self(Scope::LEAK.with_owner(move || create_rw_signal(value)))
         })
+    }
+}
+impl<T: 'static + std::fmt::Debug> std::fmt::Debug for LeakedRwSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("LeakedRwSignal");
+        self.with_untracked(|v| s.field("inner", v));
+        #[cfg(any(debug_assertions, feature = "ssr"))]
+        s.field("defined_at", &self.0.defined_at);
+        s.finish()
     }
 }
 impl<T: 'static> Copy for LeakedRwSignal<T> {}
@@ -77,7 +86,7 @@ impl<T: 'static> From<LeakedRwSignal<T>> for Signal<T> {
 /// A version of [RwSignal] that handles cleanup using an [Rc].
 ///
 /// This is useful when using nested signals, since keeping track of scopes can be bothersome then.
-#[derive(PartialEq, Eq, Default, Debug)]
+#[derive(PartialEq, Eq, Default)]
 pub struct RcSignal<T: 'static> {
     inner: Rc<RcSignalInner<T>>,
 }
@@ -104,6 +113,15 @@ impl<T: 'static> RcSignal<T> {
         // We store the Rc, ensuring that the signal is kept at least as long as a signal that would be created here.
         let _ = store_value(self.clone());
         self.inner.0 .0
+    }
+}
+impl<T: 'static + std::fmt::Debug> std::fmt::Debug for RcSignal<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = f.debug_struct("RcSignal");
+        self.with_untracked(|v| s.field("inner", v));
+        #[cfg(any(debug_assertions, feature = "ssr"))]
+        s.field("defined_at", &self.inner.0.defined_at);
+        s.finish()
     }
 }
 impl<T: 'static> Clone for RcSignal<T> {
