@@ -25,7 +25,7 @@ pub fn add_event_helper<E: crate::ev::EventDescriptor + 'static>(
     let event_name = event.name();
     let event_handler = Box::new(event_handler);
 
-    if E::BUBBLES {
+    if false {
         add_event_listener(
             target,
             event.event_delegation_key(),
