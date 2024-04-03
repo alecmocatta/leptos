@@ -997,27 +997,8 @@ impl<El: ElementDescriptor + 'static> HtmlElement<El> {
             //         let _onguard = onspan.enter();
             //     }
             // }
-            let event_name = event.name();
 
-            let key = event.event_delegation_key();
-            let event_handler = Box::new(event_handler);
-
-            if E::BUBBLES {
-                add_event_listener(
-                    self.element.as_ref(),
-                    key,
-                    event_name,
-                    event_handler,
-                    event.options(),
-                );
-            } else {
-                add_event_listener_undelegated(
-                    self.element.as_ref(),
-                    &event_name,
-                    event_handler,
-                    event.options(),
-                );
-            }
+            add_event_helper(self.element.as_ref(), event, event_handler);
 
             self
         }
