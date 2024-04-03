@@ -46,7 +46,7 @@ pub fn add_event_helper<E: crate::ev::EventDescriptor + 'static>(
 /// Adds an event listener to the target DOM element using implicit event delegation.
 #[doc(hidden)]
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
-pub fn add_event_listener<E>(
+fn add_event_listener<E>(
     target: &web_sys::Element,
     key: Oco<'static, str>,
     event_name: Oco<'static, str>,
@@ -82,7 +82,7 @@ pub fn add_event_listener<E>(
 
 #[doc(hidden)]
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
-pub(crate) fn add_event_listener_undelegated<E>(
+fn add_event_listener_undelegated<E>(
     target: &web_sys::Element,
     event_name: &str,
     #[cfg(debug_assertions)] mut cb: Box<dyn FnMut(E)>,
@@ -120,7 +120,7 @@ pub(crate) fn add_event_listener_undelegated<E>(
 
 // cf eventHandler in ryansolid/dom-expressions
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
-pub(crate) fn add_delegated_event_listener(
+fn add_delegated_event_listener(
     key: &str,
     event_name: Oco<'static, str>,
     options: &Option<web_sys::AddEventListenerOptions>,
