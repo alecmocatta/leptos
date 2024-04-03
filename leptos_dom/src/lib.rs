@@ -34,8 +34,6 @@ pub use components::*;
 pub use directive::*;
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 pub use events::add_event_helper;
-#[cfg(all(target_arch = "wasm32", feature = "web"))]
-use events::{add_event_listener, add_event_listener_undelegated};
 pub use events::{
     typed as ev,
     typed::{EventHandler, EventHandlerFn},
@@ -805,16 +803,7 @@ impl View {
           if #[cfg(all(target_arch = "wasm32", feature = "web"))] {
             match &self {
               Self::Element(el) => {
-                if E::BUBBLES {
-                  add_event_listener(&el.element, event.event_delegation_key(), event.name(), event_handler, &None);
-                } else {
-                  add_event_listener_undelegated(
-                    &el.element,
-                    &event.name(),
-                    event_handler,
-                    &None,
-                  );
-                }
+                add_event_helper(&el.element, event, event_handler)
               }
               Self::Component(c) => {
                 let event_handler = Rc::new(RefCell::new(event_handler));
