@@ -58,6 +58,7 @@ type FxIndexSet<T> = IndexSet<T, BuildHasherDefault<FxHasher>>;
 #[derive(Default)]
 pub(crate) struct Runtime {
     pub shared_context: RefCell<SharedContext>,
+    root: Option<NodeId>,
     pub owner: Cell<Option<NodeId>>,
     pub observer: Cell<Option<NodeId>>,
     #[allow(clippy::type_complexity)]
@@ -661,8 +662,21 @@ impl Runtime {
             'static,
         >,
     ) {
+        #[cfg(not(debug_assertions))]
+        let defined_at = std::panic::Location::caller();
+
         let mut properties = self.node_properties.borrow_mut();
         if let Some(owner) = self.owner.get() {
+            if Some(owner) == self.root {
+                crate::console_warn(
+                    &format_args!(
+                        "At {defined_at}, you are creating a top-level \
+                         reactive value.",
+                    )
+                    .to_string(),
+                );
+            }
+
             if let Some(entry) = properties.entry(owner) {
                 let entry = entry.or_default();
                 entry.push(property);
@@ -673,9 +687,12 @@ impl Runtime {
                 owners.insert(node, owner);
             }
         } else if !crate::signal_more::leaking_intentionally() {
-            crate::macros::debug_warn!(
-                "At {defined_at}, you are creating a reactive value outside \
-                 the reactive root.",
+            crate::console_warn(
+                &format_args!(
+                    "At {defined_at}, you are creating a reactive value \
+                     outside the reactive root.",
+                )
+                .to_string(),
             );
         }
     }
@@ -1426,6 +1443,7 @@ impl Runtime {
         let root_id = nodes.insert(root);
 
         Self {
+            root: Some(root_id),
             owner: Cell::new(Some(root_id)),
             nodes: RefCell::new(nodes),
             ..Self::default()
