@@ -17,7 +17,8 @@ thread_local! {
 pub(super) fn leaking_intentionally() -> bool {
     INTENTIONAL_LEAK.get()
 }
-fn with_intentional_leak<Out>(f: impl FnOnce() -> Out) -> Out {
+/// To suppress warning when leaking complex global signals. Use with caution on shallow function.
+pub fn with_intentional_leak<Out>(f: impl FnOnce() -> Out) -> Out {
     let old = INTENTIONAL_LEAK.replace(true);
     let ret = f();
     let is_true = INTENTIONAL_LEAK.replace(old);
