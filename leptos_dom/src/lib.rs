@@ -889,7 +889,7 @@ impl View {
     }
 }
 
-#[cfg_attr(debug_assertions, instrument)]
+// #[cfg_attr(debug_assertions, instrument)]
 #[track_caller]
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 #[doc(hidden)]
