@@ -103,18 +103,46 @@ fn add_event_listener_undelegated<E>(
       }
     }
 
-    let event_name = intern(event_name);
-    let cb = Closure::wrap(cb as Box<dyn FnMut(E)>).into_js_value();
+    let target = target.clone();
+    let event_name = intern(event_name).to_owned();
+    let cb = Closure::wrap(cb as Box<dyn FnMut(E)>);
+
     if let Some(options) = options {
         _ = target
             .add_event_listener_with_callback_and_add_event_listener_options(
-                event_name,
-                cb.unchecked_ref(),
+                &event_name,
+                cb.as_ref().unchecked_ref(),
                 options,
             );
+
+        let capture = js_sys::Reflect::get(options, &intern("capture").into())
+            .unwrap()
+            .as_bool()
+            .unwrap();
+
+        leptos_reactive::on_cleanup(move || {
+            target
+                .remove_event_listener_with_callback_and_event_listener_options(
+                    &event_name,
+                    cb.as_ref().unchecked_ref(),
+                    &web_sys::EventListenerOptions::new().capture(capture),
+                )
+                .unwrap();
+        })
     } else {
-        _ = target
-            .add_event_listener_with_callback(event_name, cb.unchecked_ref());
+        _ = target.add_event_listener_with_callback(
+            &event_name,
+            cb.as_ref().unchecked_ref(),
+        );
+
+        leptos_reactive::on_cleanup(move || {
+            target
+                .remove_event_listener_with_callback(
+                    &event_name,
+                    cb.as_ref().unchecked_ref(),
+                )
+                .unwrap();
+        })
     }
 }
 
