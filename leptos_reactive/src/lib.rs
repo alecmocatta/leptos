@@ -136,7 +136,7 @@ pub use runtime::{
 pub use selector::*;
 pub use serialization::*;
 pub use signal::{prelude as signal_prelude, *};
-pub use signal_more::{LeakedRwSignal, RcSignal};
+pub use signal_more::{with_intentional_leak, LeakedRwSignal, RcSignal};
 pub use signal_wrappers_read::*;
 pub use signal_wrappers_write::*;
 pub use slice::*;
