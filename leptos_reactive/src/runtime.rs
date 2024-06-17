@@ -149,16 +149,18 @@ impl Scope {
     }
     /// Creates a child [Scope]. When the parent is disposed of, this will be too.
     pub fn try_new_child(self) -> Result<Self, ReactiveSystemError> {
-        let id = with_runtime(|runtime| {
-            let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
-                value: None,
-                state: ReactiveNodeState::Clean,
-                node_type: ReactiveNodeType::Trigger,
-            });
-            runtime.push_scope_property(ScopeProperty::Trigger(id));
-            id
-        })?;
-        Ok(Self(Some(Owner(id))))
+        self.try_with_owner(|| {
+            let id = with_runtime(|runtime| {
+                let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
+                    value: None,
+                    state: ReactiveNodeState::Clean,
+                    node_type: ReactiveNodeType::Trigger,
+                });
+                runtime.push_scope_property(ScopeProperty::Trigger(id));
+                id
+            })?;
+            Ok(Self(Some(Owner(id))))
+        })?
     }
 
     /// Runs the given code with this reactive [Scope] as the [Owner].
