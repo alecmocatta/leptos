@@ -236,6 +236,23 @@ impl Runtime {
     pub(crate) fn dispose_node(&self, node_id: NodeId) {
         self.cleanup_node(node_id);
 
+        let owner = self.node_owners.borrow_mut().remove(node_id);
+
+        // Clean up this node from the propertis of its owner.
+        if let Some(owner) = owner {
+            let mut node_properties = self.node_properties.borrow_mut();
+            if let Some(props) = node_properties.get_mut(owner) {
+                // remove this property from the list, if found
+                if let Some(index) =
+                    props.iter().position(|p| p.to_node_id() == Some(node_id))
+                {
+                    // order of properties doesn't matter so swap_remove
+                    // is the most efficient way to remove
+                    props.swap_remove(index);
+                }
+            }
+        }
+
         // each of the subs needs to remove the node from its dependencies
         // so that it doesn't try to read the (now disposed) signal
         let subs = self.node_subscribers.borrow_mut().remove(node_id);
@@ -248,6 +265,7 @@ impl Runtime {
             }
         }
 
+        self.contexts.borrow_mut().remove(node_id);
         self.node_sources.borrow_mut().remove(node_id);
         let node = { self.nodes.borrow_mut().remove(node_id) };
         drop(node);
@@ -641,33 +659,6 @@ impl Runtime {
             #[cfg(debug_assertions)]
             defined_at,
         );
-    }
-
-    #[cfg_attr(
-        any(debug_assertions, features = "ssr"),
-        instrument(level = "trace", skip_all,)
-    )]
-    #[track_caller]
-    pub(crate) fn remove_scope_property(
-        &self,
-        owner: NodeId,
-        property: ScopeProperty,
-    ) {
-        let mut properties = self.node_properties.borrow_mut();
-        if let Some(properties) = properties.get_mut(owner) {
-            // remove this property from the list, if found
-            if let Some(index) = properties.iter().position(|p| p == &property)
-            {
-                // order of properties doesn't matter so swap_remove
-                // is the most efficient way to remove
-                properties.swap_remove(index);
-            }
-        }
-
-        if let Some(node) = property.to_node_id() {
-            let mut owners = self.node_owners.borrow_mut();
-            owners.remove(node);
-        }
     }
 }
 

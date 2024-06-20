@@ -1,4 +1,4 @@
-use crate::{with_runtime, Runtime, ScopeProperty};
+use crate::{with_runtime, Runtime};
 
 /// A version of [`create_effect`](crate::create_effect) that listens to any dependency
 /// that is accessed inside `deps` and returns a stop handler.
@@ -101,18 +101,8 @@ where
 {
     let runtime = Runtime::current();
     let (e, stop) = runtime.watch(deps, callback, immediate);
-    let prop = ScopeProperty::Effect(e);
-    let owner = crate::Owner::current();
     _ = with_runtime(|runtime| {
         runtime.update_if_necessary(e);
     });
-
-    move || {
-        stop();
-        if let Some(owner) = owner {
-            _ = with_runtime(|runtime| {
-                runtime.remove_scope_property(owner.0, prop)
-            });
-        }
-    }
+    stop
 }
