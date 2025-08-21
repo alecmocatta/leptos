@@ -206,6 +206,7 @@ where
     T: Serializable + 'static,
     Fu: Future<Output = T> + 'static,
 {
+    let defined_at = std::panic::Location::caller();
     let resolved = initial_value.is_some();
     let (value, set_value) = create_signal(initial_value);
 
@@ -236,7 +237,7 @@ where
     let id = with_runtime(|runtime| {
         let r = Rc::clone(&r) as Rc<dyn SerializableResource>;
         let id = runtime.create_serializable_resource(r);
-        runtime.push_scope_property(ScopeProperty::Resource(id));
+        runtime.push_scope_property(ScopeProperty::Resource(id), defined_at);
         id
     })
     .expect("tried to create a Resource in a Runtime that has been disposed.");
@@ -359,6 +360,7 @@ where
     T: 'static,
     Fu: Future<Output = T> + 'static,
 {
+    let defined_at = std::panic::Location::caller();
     let resolved = initial_value.is_some();
     let (value, set_value) = create_signal(initial_value);
 
@@ -388,7 +390,7 @@ where
     let id = with_runtime(|runtime| {
         let r = Rc::clone(&r) as Rc<dyn UnserializableResource>;
         let id = runtime.create_unserializable_resource(r);
-        runtime.push_scope_property(ScopeProperty::Resource(id));
+        runtime.push_scope_property(ScopeProperty::Resource(id), defined_at);
         id
     })
     .expect("tried to create a Resource in a runtime that has been disposed.");

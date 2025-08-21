@@ -343,7 +343,7 @@ pub trait SignalDispose {
 )]
 #[track_caller]
 pub fn create_signal<T>(value: T) -> (ReadSignal<T>, WriteSignal<T>) {
-    Runtime::current().create_signal(value)
+    Runtime::current().create_signal(value, std::panic::Location::caller())
 }
 
 /// Creates a signal that always contains the most recent value emitted by a
@@ -1150,7 +1150,7 @@ impl<T> fmt::Debug for WriteSignal<T> {
 )]
 #[track_caller]
 pub fn create_rw_signal<T>(value: T) -> RwSignal<T> {
-    Runtime::current().create_rw_signal(value)
+    Runtime::current().create_rw_signal(value, std::panic::Location::caller())
 }
 
 /// A signal that combines the getter and setter into one value, rather than

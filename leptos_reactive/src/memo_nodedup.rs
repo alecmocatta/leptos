@@ -43,7 +43,7 @@ pub fn create_memo_nodedup<T>(
 where
     T: 'static,
 {
-    Runtime::current().create_memo_nodedup(f)
+    Runtime::current().create_memo_nodedup(f, std::panic::Location::caller())
 }
 
 /// A derived reactive value based on other reactive values.

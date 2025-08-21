@@ -136,7 +136,7 @@ impl Trigger {
 #[cfg_attr(debug_assertions, instrument(level = "trace", skip_all,))]
 #[track_caller]
 pub fn create_trigger() -> Trigger {
-    Runtime::current().create_trigger()
+    Runtime::current().create_trigger(std::panic::Location::caller())
 }
 
 impl Default for Trigger {

@@ -86,11 +86,14 @@ pub fn create_memo<T>(f: impl Fn(Option<&T>) -> T + 'static) -> Memo<T>
 where
     T: PartialEq + 'static,
 {
-    Runtime::current().create_owning_memo(move |current_value| {
-        let new_value = f(current_value.as_ref());
-        let is_different = current_value.as_ref() != Some(&new_value);
-        (new_value, is_different)
-    })
+    Runtime::current().create_owning_memo(
+        move |current_value| {
+            let new_value = f(current_value.as_ref());
+            let is_different = current_value.as_ref() != Some(&new_value);
+            (new_value, is_different)
+        },
+        std::panic::Location::caller(),
+    )
 }
 
 /// Like [`create_memo`], `create_owning_memo` creates an efficient derived reactive value based on
@@ -167,7 +170,7 @@ pub fn create_owning_memo<T>(
 where
     T: 'static,
 {
-    Runtime::current().create_owning_memo(f)
+    Runtime::current().create_owning_memo(f, std::panic::Location::caller())
 }
 
 /// An efficient derived reactive value based on other reactive values.

@@ -74,7 +74,7 @@ where
 
             let runtime = Runtime::current();
             let owner = Owner::current();
-            let id = runtime.create_effect(f);
+            let id = runtime.create_effect(f, std::panic::Location::caller());
 
             queue_microtask(move || {
                 with_owner(owner.unwrap(), move || {
@@ -250,7 +250,7 @@ where
     T: 'static,
 {
     let runtime = Runtime::current();
-    let id = runtime.create_effect(f);
+    let id = runtime.create_effect(f, std::panic::Location::caller());
     //crate::macros::debug_warn!("creating effect {e:?}");
     _ = with_runtime(|runtime| {
         runtime.update_if_necessary(id);
@@ -285,7 +285,7 @@ where
     cfg_if! {
         if #[cfg(not(feature = "ssr"))] {
             let runtime = Runtime::current();
-            let id = runtime.create_effect(f);
+            let id = runtime.create_effect(f, std::panic::Location::caller());
             _ = with_runtime( |runtime| {
                 runtime.update_if_necessary(id);
             });

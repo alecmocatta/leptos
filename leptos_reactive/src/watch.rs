@@ -99,8 +99,9 @@ where
     W: Clone + 'static,
     T: 'static,
 {
+    let defined_at = std::panic::Location::caller();
     let runtime = Runtime::current();
-    let (e, stop) = runtime.watch(deps, callback, immediate);
+    let (e, stop) = runtime.watch(deps, callback, immediate, defined_at);
     let prop = ScopeProperty::Effect(e);
     let owner = crate::Owner::current();
     _ = with_runtime(|runtime| {

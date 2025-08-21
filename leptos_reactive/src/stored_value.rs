@@ -305,12 +305,13 @@ pub fn store_value<T>(value: T) -> StoredValue<T>
 where
     T: 'static,
 {
+    let defined_at = std::panic::Location::caller();
     let id = with_runtime(|runtime| {
         let id = runtime
             .stored_values
             .borrow_mut()
             .insert(Rc::new(RefCell::new(value)));
-        runtime.push_scope_property(ScopeProperty::StoredValue(id));
+        runtime.push_scope_property(ScopeProperty::StoredValue(id), defined_at);
         id
     })
     .expect("store_value failed to find the current runtime");

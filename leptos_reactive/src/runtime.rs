@@ -149,6 +149,7 @@ impl Scope {
     }
     /// Creates a child [Scope]. When the parent is disposed of, this will be too.
     pub fn try_new_child(self) -> Result<Self, ReactiveSystemError> {
+        let defined_at = std::panic::Location::caller();
         self.try_with_owner(|| {
             let id = with_runtime(|runtime| {
                 let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
@@ -156,7 +157,10 @@ impl Scope {
                     state: ReactiveNodeState::Clean,
                     node_type: ReactiveNodeType::Trigger,
                 });
-                runtime.push_scope_property(ScopeProperty::Trigger(id));
+                runtime.push_scope_property(
+                    ScopeProperty::Trigger(id),
+                    defined_at,
+                );
                 id
             })?;
             Ok(Self(Some(Owner(id))))
@@ -645,13 +649,8 @@ impl Runtime {
     pub(crate) fn register_property(
         &self,
         property: ScopeProperty,
-        #[cfg(debug_assertions)] defined_at: &'static std::panic::Location<
-            'static,
-        >,
+        defined_at: &'static std::panic::Location<'static>,
     ) {
-        #[cfg(not(debug_assertions))]
-        let defined_at = std::panic::Location::caller();
-
         let mut properties = self.node_properties.borrow_mut();
         if let Some(owner) = self.owner.get() {
             if Some(owner) == self.root {
@@ -798,14 +797,12 @@ impl Runtime {
         instrument(level = "trace", skip_all,)
     )]
     #[track_caller]
-    pub(crate) fn push_scope_property(&self, prop: ScopeProperty) {
-        #[cfg(debug_assertions)]
-        let defined_at = std::panic::Location::caller();
-        self.register_property(
-            prop,
-            #[cfg(debug_assertions)]
-            defined_at,
-        );
+    pub(crate) fn push_scope_property(
+        &self,
+        prop: ScopeProperty,
+        defined_at: &'static std::panic::Location<'static>,
+    ) {
+        self.register_property(prop, defined_at);
     }
 
     #[cfg_attr(
@@ -919,6 +916,7 @@ pub fn as_child_of_current_owner<T, U>(
 where
     T: 'static,
 {
+    let defined_at = std::panic::Location::caller();
     let owner = with_runtime(|runtime| runtime.owner.get())
         .expect("runtime should be alive when created");
     move |t| {
@@ -934,7 +932,7 @@ where
                 state: ReactiveNodeState::Clean,
                 node_type: ReactiveNodeType::Trigger,
             });
-            runtime.push_scope_property(ScopeProperty::Trigger(id));
+            runtime.push_scope_property(ScopeProperty::Trigger(id), defined_at);
             let disposer = Disposer(id);
 
             runtime.owner.set(Some(id));
@@ -1029,6 +1027,7 @@ pub fn try_with_owner<T>(
 
 /// Runs the given function as a child of the current Owner, once.
 pub fn run_as_child<T>(f: impl FnOnce() -> T + 'static) -> T {
+    let defined_at = std::panic::Location::caller();
     let owner = with_runtime(|runtime| runtime.owner.get())
         .expect("runtime should be alive when created");
     let (value, disposer) = with_runtime(|runtime| {
@@ -1043,7 +1042,7 @@ pub fn run_as_child<T>(f: impl FnOnce() -> T + 'static) -> T {
             state: ReactiveNodeState::Clean,
             node_type: ReactiveNodeType::Trigger,
         });
-        runtime.push_scope_property(ScopeProperty::Trigger(id));
+        runtime.push_scope_property(ScopeProperty::Trigger(id), defined_at);
         let disposer = Disposer(id);
 
         runtime.owner.set(Some(id));
@@ -1069,6 +1068,7 @@ impl RuntimeId {
     /// This would suggest either that you’re trying to dispose of it twice, or
     /// that it was created in a different thread; panicking here indicates a
     /// memory leak.
+    #[track_caller]
     pub fn dispose(self) {
         cfg_if! {
             if #[cfg(not(any(feature = "csr", feature = "hydrate")))] {
@@ -1131,14 +1131,17 @@ impl RuntimeId {
 
     #[track_caller]
     #[inline(always)] // only because it's placed here to fit in with the other create methods
-    pub(crate) fn create_trigger(self) -> Trigger {
+    pub(crate) fn create_trigger(
+        self,
+        defined_at: &'static std::panic::Location<'static>,
+    ) -> Trigger {
         let id = with_runtime(|runtime| {
             let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
                 value: None,
                 state: ReactiveNodeState::Clean,
                 node_type: ReactiveNodeType::Trigger,
             });
-            runtime.push_scope_property(ScopeProperty::Trigger(id));
+            runtime.push_scope_property(ScopeProperty::Trigger(id), defined_at);
             id
         })
         .expect(
@@ -1156,6 +1159,7 @@ impl RuntimeId {
     pub(crate) fn create_concrete_signal(
         self,
         value: Rc<RefCell<dyn Any>>,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> NodeId {
         with_runtime(|runtime| {
             let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
@@ -1163,7 +1167,7 @@ impl RuntimeId {
                 state: ReactiveNodeState::Clean,
                 node_type: ReactiveNodeType::Signal,
             });
-            runtime.push_scope_property(ScopeProperty::Signal(id));
+            runtime.push_scope_property(ScopeProperty::Signal(id), defined_at);
             id
         })
         .expect("tried to create a signal in a runtime that has been disposed")
@@ -1174,12 +1178,14 @@ impl RuntimeId {
     pub(crate) fn create_signal<T>(
         self,
         value: T,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> (ReadSignal<T>, WriteSignal<T>)
     where
         T: Any + 'static,
     {
         let id = self.create_concrete_signal(
-            Rc::new(RefCell::new(value)) as Rc<RefCell<dyn Any>>
+            Rc::new(RefCell::new(value)) as Rc<RefCell<dyn Any>>,
+            defined_at,
         );
 
         (
@@ -1200,12 +1206,17 @@ impl RuntimeId {
 
     #[track_caller]
     #[inline(always)]
-    pub(crate) fn create_rw_signal<T>(self, value: T) -> RwSignal<T>
+    pub(crate) fn create_rw_signal<T>(
+        self,
+        value: T,
+        defined_at: &'static std::panic::Location<'static>,
+    ) -> RwSignal<T>
     where
         T: Any + 'static,
     {
         let id = self.create_concrete_signal(
-            Rc::new(RefCell::new(value)) as Rc<RefCell<dyn Any>>
+            Rc::new(RefCell::new(value)) as Rc<RefCell<dyn Any>>,
+            defined_at,
         );
         RwSignal {
             id,
@@ -1220,6 +1231,7 @@ impl RuntimeId {
         self,
         value: Rc<RefCell<dyn Any>>,
         effect: Rc<dyn AnyComputation>,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> NodeId {
         with_runtime(|runtime| {
             let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
@@ -1229,7 +1241,7 @@ impl RuntimeId {
                     f: Rc::clone(&effect),
                 },
             });
-            runtime.push_scope_property(ScopeProperty::Effect(id));
+            runtime.push_scope_property(ScopeProperty::Effect(id), defined_at);
             id
         })
         .expect("tried to create an effect in a runtime that has been disposed")
@@ -1239,6 +1251,7 @@ impl RuntimeId {
         self,
         value: Rc<RefCell<dyn Any>>,
         computation: Rc<dyn AnyComputation>,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> NodeId {
         with_runtime(|runtime| {
             let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
@@ -1248,7 +1261,7 @@ impl RuntimeId {
                 state: ReactiveNodeState::Dirty,
                 node_type: ReactiveNodeType::Memo { f: computation },
             });
-            runtime.push_scope_property(ScopeProperty::Effect(id));
+            runtime.push_scope_property(ScopeProperty::Effect(id), defined_at);
             id
         })
         .expect("tried to create a memo in a runtime that has been disposed")
@@ -1259,6 +1272,7 @@ impl RuntimeId {
         self,
         value: Rc<RefCell<dyn Any>>,
         computation: Rc<dyn AnyComputation>,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> NodeId {
         with_runtime(|runtime| {
             let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
@@ -1268,7 +1282,7 @@ impl RuntimeId {
                 state: ReactiveNodeState::Dirty,
                 node_type: ReactiveNodeType::MemoNodedup { f: computation },
             });
-            runtime.push_scope_property(ScopeProperty::Effect(id));
+            runtime.push_scope_property(ScopeProperty::Effect(id), defined_at);
             id
         })
         .expect("tried to create a memo in a runtime that has been disposed")
@@ -1279,6 +1293,7 @@ impl RuntimeId {
     pub(crate) fn create_effect<T>(
         self,
         f: impl Fn(Option<T>) -> T + 'static,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> NodeId
     where
         T: Any + 'static,
@@ -1289,8 +1304,9 @@ impl RuntimeId {
                 f,
                 ty: PhantomData,
                 #[cfg(any(debug_assertions, feature = "ssr"))]
-                defined_at: std::panic::Location::caller(),
+                defined_at,
             }),
+            defined_at,
         )
     }
 
@@ -1299,6 +1315,7 @@ impl RuntimeId {
         deps: impl Fn() -> W + 'static,
         callback: impl Fn(&W, Option<&W>, Option<T>) -> T + Clone + 'static,
         immediate: bool,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> (NodeId, impl Fn() + Clone)
     where
         W: Clone + 'static,
@@ -1353,8 +1370,9 @@ impl RuntimeId {
                 f: effect_fn,
                 ty: PhantomData,
                 #[cfg(any(debug_assertions, feature = "ssr"))]
-                defined_at: std::panic::Location::caller(),
+                defined_at,
             }),
+            defined_at,
         );
 
         (id, move || {
@@ -1369,6 +1387,7 @@ impl RuntimeId {
     pub(crate) fn create_owning_memo<T>(
         self,
         f: impl Fn(Option<T>) -> (T, bool) + 'static,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> Memo<T>
     where
         T: 'static,
@@ -1380,12 +1399,13 @@ impl RuntimeId {
                     f,
                     t: PhantomData,
                     #[cfg(any(debug_assertions, feature = "ssr"))]
-                    defined_at: std::panic::Location::caller(),
+                    defined_at,
                 }),
+                defined_at,
             ),
             ty: PhantomData,
             #[cfg(any(debug_assertions, feature = "ssr"))]
-            defined_at: std::panic::Location::caller(),
+            defined_at,
         }
     }
 
@@ -1394,6 +1414,7 @@ impl RuntimeId {
     pub(crate) fn create_memo_nodedup<T>(
         self,
         f: impl Fn(Option<&T>) -> T + 'static,
+        defined_at: &'static std::panic::Location<'static>,
     ) -> MemoNodedup<T>
     where
         T: Any + 'static,
@@ -1405,12 +1426,13 @@ impl RuntimeId {
                     f,
                     t: PhantomData,
                     #[cfg(any(debug_assertions, feature = "ssr"))]
-                    defined_at: std::panic::Location::caller(),
+                    defined_at,
                 }),
+                defined_at,
             ),
             ty: PhantomData,
             #[cfg(any(debug_assertions, feature = "ssr"))]
-            defined_at: std::panic::Location::caller(),
+            defined_at,
         }
     }
 }
