@@ -195,6 +195,7 @@ where
     )
 }
 
+#[track_caller]
 fn create_resource_helper<S, T, Fu>(
     source: impl Fn() -> S + 'static,
     fetcher: impl Fn(S) -> Fu + 'static,

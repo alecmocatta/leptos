@@ -161,9 +161,11 @@ where
         instrument(level = "trace", name = "<DynChild />", skip_all)
     )]
     #[inline]
+    #[track_caller]
     fn into_view(self) -> View {
         // concrete inner function
         #[inline(never)]
+        #[track_caller]
         fn create_dyn_view(
             component: DynChildRepr,
             child_fn: Box<dyn Fn() -> View>,

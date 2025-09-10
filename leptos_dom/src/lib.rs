@@ -108,6 +108,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "Option<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         if let Some(t) = self {
             t.into_view()
@@ -127,6 +128,7 @@ where
         instrument(level = "trace", name = "Fn() -> impl IntoView", skip_all)
     )]
     #[track_caller]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(self).into_view()
     }
@@ -137,6 +139,7 @@ where
     N: IntoView + 'static,
 {
     #[inline]
+    #[track_caller]
     fn into_view(self) -> View {
         // reuse impl for `Fn() -> impl IntoView`
         IntoView::into_view(move || self())
@@ -152,6 +155,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "ReadSignal<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
@@ -165,6 +169,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "RwSignal<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
@@ -178,6 +183,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "Memo<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
@@ -191,6 +197,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "Signal<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
@@ -205,6 +212,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "Signal<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
@@ -218,6 +226,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "MaybeSignal<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
@@ -232,12 +241,14 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "MaybeSignal<T>", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         DynChild::new(move || self.get()).into_view()
     }
 }
 
 impl IntoView for TextProp {
+    #[track_caller]
     fn into_view(self) -> View {
         (move || self.get()).into_view()
     }
@@ -254,6 +265,7 @@ impl<I: IntoIterator<Item = T>, T: IntoView> CollectView for I {
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "#text", skip_all)
     )]
+    #[track_caller]
     fn collect_view(self) -> View {
         self.into_iter()
             .map(|v| v.into_view())
@@ -632,6 +644,7 @@ impl<const N: usize> IntoView for [View; N] {
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", name = "[Node; N]", skip_all)
     )]
+    #[track_caller]
     fn into_view(self) -> View {
         Fragment::new(self.into_iter().collect()).into_view()
     }
@@ -987,6 +1000,7 @@ pub enum MountKind<'a> {
 }
 
 /// Runs the provided closure and mounts the result to the `<body>`.
+#[track_caller]
 pub fn mount_to_body<F, N>(f: F)
 where
     F: FnOnce() -> N + 'static,
@@ -1010,6 +1024,7 @@ where
 }
 
 /// Runs the provided closure and mounts the result to the provided element.
+#[track_caller]
 pub fn mount_to<F, N>(parent: web_sys::HtmlElement, f: F)
 where
     F: FnOnce() -> N + 'static,
@@ -1019,6 +1034,7 @@ where
 }
 
 /// Runs the provided closure and mounts the result to the provided element.
+#[track_caller]
 pub fn mount_to_with_stop_hydrating<F, N>(
     parent: web_sys::HtmlElement,
     stop_hydrating: bool,
@@ -1124,6 +1140,7 @@ macro_rules! impl_into_view_for_tuples {
       $($ty: IntoView),*
     {
       #[inline]
+      #[track_caller]
       fn into_view(self) -> View {
         paste::paste! {
           let ($([<$ty:lower>],)*) = self;

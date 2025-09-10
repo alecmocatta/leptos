@@ -276,6 +276,7 @@ where
     )
 )]
 #[inline(always)]
+#[track_caller]
 pub fn create_render_effect<T>(
     f: impl Fn(Option<T>) -> T + 'static,
 ) -> Effect<T>

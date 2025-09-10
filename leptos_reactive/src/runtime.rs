@@ -148,6 +148,7 @@ impl Scope {
         Self::try_new_child(self).expect("runtime should be alive when run")
     }
     /// Creates a child [Scope]. When the parent is disposed of, this will be too.
+    #[track_caller]
     pub fn try_new_child(self) -> Result<Self, ReactiveSystemError> {
         let defined_at = std::panic::Location::caller();
         self.try_with_owner(|| {
@@ -910,6 +911,7 @@ pub struct RuntimeId;
 ///
 /// ## Panics
 /// Panics if there is no current reactive runtime.
+#[track_caller]
 pub fn as_child_of_current_owner<T, U>(
     f: impl Fn(T) -> U,
 ) -> impl Fn(T) -> (U, Disposer)
@@ -1026,6 +1028,7 @@ pub fn try_with_owner<T>(
 }
 
 /// Runs the given function as a child of the current Owner, once.
+#[track_caller]
 pub fn run_as_child<T>(f: impl FnOnce() -> T + 'static) -> T {
     let defined_at = std::panic::Location::caller();
     let owner = with_runtime(|runtime| runtime.owner.get())
