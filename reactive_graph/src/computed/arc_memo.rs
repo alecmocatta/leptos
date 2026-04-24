@@ -4,7 +4,7 @@ use crate::{
         AnySource, AnySubscriber, ReactiveNode, Source, Subscriber,
         ToAnySource, ToAnySubscriber,
     },
-    owner::{Storage, StorageAccess, SyncStorage},
+    owner::{LocalStorage, Storage, StorageAccess, SyncStorage},
     signal::{
         guards::{Mapped, Plain, ReadGuard},
         ArcReadSignal, ArcRwSignal,
@@ -14,6 +14,7 @@ use crate::{
 use core::fmt::Debug;
 use std::{
     hash::Hash,
+    mem,
     panic::Location,
     sync::{Arc, Weak},
 };
@@ -161,6 +162,39 @@ where
             );
 
             MemoInner::new(Arc::new(fun), subscriber)
+        });
+        Self {
+            #[cfg(any(debug_assertions, leptos_debuginfo))]
+            defined_at: Location::caller(),
+            inner,
+        }
+    }
+}
+
+impl<T: 'static> ArcMemo<T, LocalStorage>
+where
+    LocalStorage: Storage<T>,
+{
+    /// Creates a new owning memo in local (non-`Send`/`Sync`) storage.
+    ///
+    /// Unlike [`ArcMemo::new_local`](), this receives ownership of the previous
+    /// value and returns both the new value and a `bool` indicating whether the
+    /// value changed.
+    #[track_caller]
+    pub fn new_owning_local(
+        fun: impl Fn(Option<T>) -> (T, bool) + 'static,
+    ) -> Self {
+        let fun: Arc<dyn Fn(Option<T>) -> (T, bool)> = Arc::new(fun);
+        let fun: Arc<dyn Fn(Option<T>) -> (T, bool) + Send + Sync> =
+            unsafe { mem::transmute(fun) };
+
+        let inner = Arc::new_cyclic(|weak| {
+            let subscriber = AnySubscriber(
+                weak.as_ptr() as usize,
+                Weak::clone(weak) as Weak<dyn Subscriber + Send + Sync>,
+            );
+
+            MemoInner::new(fun, subscriber)
         });
         Self {
             #[cfg(any(debug_assertions, leptos_debuginfo))]
