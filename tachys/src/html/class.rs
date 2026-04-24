@@ -287,7 +287,7 @@ impl<T: IntoClass> IntoClass for Option<T> {
 
 impl IntoClass for &str {
     type AsyncOutput = Self;
-    type State = (crate::renderer::types::Element, Self);
+    type State = (crate::renderer::types::ClassList, Self);
     type Cloneable = Self;
     type CloneableOwned = Arc<str>;
 
@@ -310,19 +310,17 @@ impl IntoClass for &str {
         if !FROM_SERVER {
             Rndr::set_attribute(el, "class", self);
         }
-        (el.clone(), self)
+        (Rndr::class_list(el), self)
     }
 
     fn build(self, el: &crate::renderer::types::Element) -> Self::State {
         Rndr::set_attribute(el, "class", self);
-        (el.clone(), self)
+        (Rndr::class_list(el), self)
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        let (el, prev) = state;
-        if self != *prev {
-            Rndr::set_attribute(el, "class", self);
-        }
+        let (class_list, prev) = state;
+        rebuild_class_list(class_list, prev, self);
         *prev = self;
     }
 
@@ -341,49 +339,68 @@ impl IntoClass for &str {
     }
 
     fn reset(state: &mut Self::State) {
-        let (el, _prev) = state;
-        Rndr::remove_attribute(el, "class");
+        let (class_list, prev) = state;
+        reset_class_list(class_list, prev);
+    }
+}
+
+fn rebuild_class_list(
+    class_list: &crate::renderer::types::ClassList,
+    prev: &str,
+    next: &str,
+) {
+    if next != prev {
+        reset_class_list(class_list, prev);
+        for class in next.split_whitespace() {
+            Rndr::add_class(class_list, class);
+        }
+    }
+}
+
+fn reset_class_list(
+    class_list: &crate::renderer::types::ClassList,
+    prev: &str,
+) {
+    for class in prev.split_whitespace() {
+        Rndr::remove_class(class_list, class);
     }
 }
 
 impl IntoClass for Cow<'_, str> {
     type AsyncOutput = Self;
-    type State = (crate::renderer::types::Element, Self);
+    type State = (crate::renderer::types::ClassList, Self);
     type Cloneable = Arc<str>;
     type CloneableOwned = Arc<str>;
 
     fn html_len(&self) -> usize {
-        self.len()
+        <&str as IntoClass>::html_len(&self.as_ref())
     }
 
     fn to_html(self, class: &mut String) {
-        IntoClass::to_html(&*self, class);
+        <&str as IntoClass>::to_html(&*self, class);
     }
 
     fn should_overwrite(&self) -> bool {
-        true
+        <&str as IntoClass>::should_overwrite(&self.as_ref())
     }
 
     fn hydrate<const FROM_SERVER: bool>(
         self,
         el: &crate::renderer::types::Element,
     ) -> Self::State {
-        if !FROM_SERVER {
-            Rndr::set_attribute(el, "class", &self);
-        }
-        (el.clone(), self)
+        (
+            <&str as IntoClass>::hydrate::<FROM_SERVER>(&*self, el).0,
+            self,
+        )
     }
 
     fn build(self, el: &crate::renderer::types::Element) -> Self::State {
-        Rndr::set_attribute(el, "class", &self);
-        (el.clone(), self)
+        (<&str as IntoClass>::build(&*self, el).0, self)
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        let (el, prev) = state;
-        if self != *prev {
-            Rndr::set_attribute(el, "class", &self);
-        }
+        let (class_list, prev) = state;
+        rebuild_class_list(class_list, prev.as_ref(), &self);
         *prev = self;
     }
 
@@ -402,19 +419,19 @@ impl IntoClass for Cow<'_, str> {
     }
 
     fn reset(state: &mut Self::State) {
-        let (el, _prev) = state;
-        Rndr::remove_attribute(el, "class");
+        let (class_list, prev) = state;
+        reset_class_list(class_list, prev.as_ref());
     }
 }
 
 impl IntoClass for String {
     type AsyncOutput = Self;
-    type State = (crate::renderer::types::Element, Self);
+    type State = (crate::renderer::types::ClassList, Self);
     type Cloneable = Arc<str>;
     type CloneableOwned = Arc<str>;
 
     fn html_len(&self) -> usize {
-        self.len()
+        <&str as IntoClass>::html_len(&self.as_str())
     }
 
     fn to_html(self, class: &mut String) {
@@ -422,29 +439,26 @@ impl IntoClass for String {
     }
 
     fn should_overwrite(&self) -> bool {
-        true
+        <&str as IntoClass>::should_overwrite(&self.as_str())
     }
 
     fn hydrate<const FROM_SERVER: bool>(
         self,
         el: &crate::renderer::types::Element,
     ) -> Self::State {
-        if !FROM_SERVER {
-            Rndr::set_attribute(el, "class", &self);
-        }
-        (el.clone(), self)
+        (
+            <&str as IntoClass>::hydrate::<FROM_SERVER>(&*self, el).0,
+            self,
+        )
     }
 
     fn build(self, el: &crate::renderer::types::Element) -> Self::State {
-        Rndr::set_attribute(el, "class", &self);
-        (el.clone(), self)
+        (<&str as IntoClass>::build(&*self, el).0, self)
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        let (el, prev) = state;
-        if self != *prev {
-            Rndr::set_attribute(el, "class", &self);
-        }
+        let (class_list, prev) = state;
+        rebuild_class_list(class_list, prev.as_str(), self.as_str());
         *prev = self;
     }
 
@@ -463,49 +477,46 @@ impl IntoClass for String {
     }
 
     fn reset(state: &mut Self::State) {
-        let (el, _prev) = state;
-        Rndr::remove_attribute(el, "class");
+        let (class_list, prev) = state;
+        reset_class_list(class_list, prev.as_str());
     }
 }
 
 impl IntoClass for Arc<str> {
     type AsyncOutput = Self;
-    type State = (crate::renderer::types::Element, Self);
+    type State = (crate::renderer::types::ClassList, Self);
     type Cloneable = Self;
     type CloneableOwned = Self;
 
     fn html_len(&self) -> usize {
-        self.len()
+        <&str as IntoClass>::html_len(&self.as_ref())
     }
 
     fn to_html(self, class: &mut String) {
-        IntoClass::to_html(self.as_ref(), class);
+        IntoClass::to_html(&*self, class);
     }
 
     fn should_overwrite(&self) -> bool {
-        true
+        <&str as IntoClass>::should_overwrite(&self.as_ref())
     }
 
     fn hydrate<const FROM_SERVER: bool>(
         self,
         el: &crate::renderer::types::Element,
     ) -> Self::State {
-        if !FROM_SERVER {
-            Rndr::set_attribute(el, "class", &self);
-        }
-        (el.clone(), self)
+        (
+            <&str as IntoClass>::hydrate::<FROM_SERVER>(&*self, el).0,
+            self,
+        )
     }
 
     fn build(self, el: &crate::renderer::types::Element) -> Self::State {
-        Rndr::set_attribute(el, "class", &self);
-        (el.clone(), self)
+        (<&str as IntoClass>::build(&*self, el).0, self)
     }
 
     fn rebuild(self, state: &mut Self::State) {
-        let (el, prev) = state;
-        if self != *prev {
-            Rndr::set_attribute(el, "class", &self);
-        }
+        let (class_list, prev) = state;
+        rebuild_class_list(class_list, prev.as_ref(), &self);
         *prev = self;
     }
 
@@ -524,8 +535,8 @@ impl IntoClass for Arc<str> {
     }
 
     fn reset(state: &mut Self::State) {
-        let (el, _prev) = state;
-        Rndr::remove_attribute(el, "class");
+        let (class_list, prev) = state;
+        reset_class_list(class_list, prev.as_ref());
     }
 }
 
