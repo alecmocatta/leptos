@@ -324,6 +324,11 @@ mod inner {
 
             if let Some(needs_update) = BATCH.with(|batch| {
                 if let Some(batch) = &*batch.read().or_poisoned() {
+                    if needs_update {
+                        self.write().or_poisoned().state =
+                            ReactiveNodeState::Dirty;
+                    }
+
                     let mut batch = batch.write().or_poisoned();
                     let subscriber =
                         self.read().or_poisoned().any_subscriber.clone();
@@ -393,7 +398,13 @@ mod inner {
         }
 
         fn mark_check(&self) {
-            self.write().or_poisoned().state = ReactiveNodeState::Check;
+            {
+                let mut guard = self.write().or_poisoned();
+                if guard.state != ReactiveNodeState::Dirty {
+                    guard.state = ReactiveNodeState::Check;
+                }
+            }
+
             let any_subscriber =
                 self.read().or_poisoned().any_subscriber.clone();
             any_subscriber.with_observer(|| self.update_if_necessary());

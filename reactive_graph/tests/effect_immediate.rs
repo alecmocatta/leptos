@@ -2,7 +2,11 @@
 pub mod imports {
     pub use any_spawner::Executor;
     pub use reactive_graph::{
-        effect::ImmediateEffect, owner::Owner, prelude::*, signal::RwSignal,
+        computed::Memo,
+        effect::{batch, ImmediateEffect},
+        owner::Owner,
+        prelude::*,
+        signal::RwSignal,
     };
     pub use std::sync::{Arc, RwLock};
     pub use tokio::task;
@@ -33,6 +37,52 @@ fn effect_runs() {
     println!("setting to 1");
     a.set(1);
     assert_eq!(b.read().unwrap().as_str(), "Value is 1");
+}
+
+#[cfg(feature = "effects")]
+#[test]
+fn batched_memo_update_reruns_effect() {
+    use imports::*;
+
+    let owner = Owner::new();
+    owner.set();
+
+    let a = RwSignal::new(0);
+    let b = Memo::new(move |_| a.get());
+    let seen = Arc::new(RwLock::new(Vec::new()));
+
+    let _guard = ImmediateEffect::new({
+        let seen = Arc::clone(&seen);
+        move || seen.write().unwrap().push(b.get())
+    });
+
+    batch(|| a.set(1));
+    assert_eq!(&*seen.read().unwrap(), &[0, 1]);
+}
+
+#[cfg(feature = "effects")]
+#[test]
+fn batched_dirty_effect_is_not_downgraded_by_later_check() {
+    use imports::*;
+
+    let owner = Owner::new();
+    owner.set();
+
+    let a = RwSignal::new(0);
+    let changed = Memo::new(move |_| a.get());
+    let unchanged = Memo::new(move |_| {
+        a.get();
+        0
+    });
+    let seen = Arc::new(RwLock::new(Vec::new()));
+
+    let _guard = ImmediateEffect::new({
+        let seen = Arc::clone(&seen);
+        move || seen.write().unwrap().push((changed.get(), unchanged.get()))
+    });
+
+    batch(|| a.set(1));
+    assert_eq!(&*seen.read().unwrap(), &[(0, 0), (1, 0)]);
 }
 
 #[cfg(feature = "effects")]
