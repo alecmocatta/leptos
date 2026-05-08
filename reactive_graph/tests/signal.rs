@@ -5,6 +5,7 @@ use reactive_graph::{
         Dispose, Get, GetUntracked, IntoInner, Read, Set, Update,
         UpdateUntracked, With, WithUntracked, Write,
     },
+    wrappers::read::{ArcSignal, Signal},
 };
 
 #[test]
@@ -139,4 +140,37 @@ fn into_inner_non_arc_signal() {
     assert_eq!(a.get(), 2);
     b.dispose();
     assert_eq!(a.into_inner(), Some(2));
+}
+
+#[test]
+fn signal_wrapper_equality_compares_current_values() {
+    let owner = Owner::new();
+    owner.with(|| {
+        let (count, set_count) = signal(1);
+        let stored = Signal::stored(1);
+        let derived = Signal::derive(move || count.get());
+
+        assert!(stored == derived);
+
+        set_count.set(2);
+        assert!(stored != derived);
+    });
+}
+
+#[test]
+fn arc_signal_wrapper_equality_compares_current_values() {
+    let count = ArcRwSignal::new(1);
+    let stored = ArcSignal::stored(1);
+    let read_signal = ArcSignal::from(count.read_only());
+    let derived = ArcSignal::derive({
+        let count = count.clone();
+        move || count.get()
+    });
+
+    assert!(stored == read_signal);
+    assert!(read_signal == derived);
+
+    count.set(2);
+    assert!(stored != read_signal);
+    assert!(read_signal == derived);
 }

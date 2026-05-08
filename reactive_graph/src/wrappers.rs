@@ -16,6 +16,7 @@ pub mod read {
         },
         traits::{
             DefinedAt, Dispose, Get, Read, ReadUntracked, ReadValue, Track,
+            With, WithValue,
         },
         unwrap_signal,
     };
@@ -77,19 +78,33 @@ pub mod read {
         }
     }
 
+    impl<T, S> SignalTypes<T, S>
+    where
+        T: 'static,
+        S: Storage<T>,
+    {
+        fn with_current_value<U>(&self, fun: impl FnOnce(&T) -> U) -> U {
+            match self {
+                Self::ReadSignal(signal) => signal.with(fun),
+                Self::Memo(memo) => memo.with(fun),
+                Self::DerivedSignal(derived_signal) => {
+                    let value = derived_signal();
+                    fun(&value)
+                }
+                Self::Stored(value) => value.with_value(fun),
+            }
+        }
+    }
+
     impl<T, S> PartialEq for SignalTypes<T, S>
     where
+        T: PartialEq + 'static,
         S: Storage<T>,
     {
         fn eq(&self, other: &Self) -> bool {
-            match (self, other) {
-                (Self::ReadSignal(l0), Self::ReadSignal(r0)) => l0 == r0,
-                (Self::Memo(l0), Self::Memo(r0)) => l0 == r0,
-                (Self::DerivedSignal(l0), Self::DerivedSignal(r0)) => {
-                    std::ptr::eq(l0, r0)
-                }
-                _ => false,
-            }
+            self.with_current_value(|self_| {
+                other.with_current_value(|other| self_ == other)
+            })
         }
     }
 
@@ -153,14 +168,20 @@ pub mod read {
         }
     }
 
-    impl<T, S> Eq for ArcSignal<T, S> where S: Storage<T> {}
+    impl<T, S> Eq for ArcSignal<T, S>
+    where
+        T: Eq + 'static,
+        S: Storage<T>,
+    {
+    }
 
     impl<T, S> PartialEq for ArcSignal<T, S>
     where
+        T: PartialEq + 'static,
         S: Storage<T>,
     {
         fn eq(&self, other: &Self) -> bool {
-            self.inner == other.inner
+            self.with(|self_| other.with(|other| self_ == other))
         }
     }
 
@@ -491,14 +512,20 @@ pub mod read {
         }
     }
 
-    impl<T, S> Eq for Signal<T, S> where S: Storage<T> {}
+    impl<T, S> Eq for Signal<T, S>
+    where
+        T: Eq + 'static,
+        S: Storage<T> + Storage<SignalTypes<T, S>>,
+    {
+    }
 
     impl<T, S> PartialEq for Signal<T, S>
     where
-        S: Storage<T>,
+        T: PartialEq + 'static,
+        S: Storage<T> + Storage<SignalTypes<T, S>>,
     {
         fn eq(&self, other: &Self) -> bool {
-            self.inner == other.inner
+            self.with(|self_| other.with(|other| self_ == other))
         }
     }
 
@@ -1412,7 +1439,7 @@ pub mod read {
     /// assert_eq!(above_3(&double_count), true);
     /// assert_eq!(above_3(&memoized_double_count.into()), true);
     /// ```
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug)]
     #[deprecated(
         since = "0.7.0-rc3",
         note = "`MaybeSignal<T>` is deprecated in favour of `Signal<T>` which \
@@ -1428,6 +1455,34 @@ pub mod read {
         Static(T),
         /// A reactive signal that contains a value of type `T`.
         Dynamic(Signal<T, S>),
+    }
+
+    #[allow(deprecated)]
+    impl<T, S> PartialEq for MaybeSignal<T, S>
+    where
+        T: PartialEq + 'static,
+        S: Storage<T> + Storage<SignalTypes<T, S>>,
+    {
+        fn eq(&self, other: &Self) -> bool {
+            match (self, other) {
+                (Self::Static(this), Self::Static(other)) => this == other,
+                (Self::Static(this), Self::Dynamic(other)) => {
+                    other.with(|other| this == other)
+                }
+                (Self::Dynamic(this), Self::Static(other)) => {
+                    this.with(|this| this == other)
+                }
+                (Self::Dynamic(this), Self::Dynamic(other)) => this == other,
+            }
+        }
+    }
+
+    #[allow(deprecated)]
+    impl<T, S> Eq for MaybeSignal<T, S>
+    where
+        T: Eq + 'static,
+        S: Storage<T> + Storage<SignalTypes<T, S>>,
+    {
     }
 
     #[allow(deprecated)]
