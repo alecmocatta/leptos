@@ -157,10 +157,10 @@ pub fn batch<T>(f: impl FnOnce() -> T) -> T {
     struct ExecuteOnDrop;
     impl Drop for ExecuteOnDrop {
         fn drop(&mut self) {
-            let effects = {
-                let mut batch = inner::BATCH.write().or_poisoned();
+            let effects = inner::BATCH.with(|batch| {
+                let mut batch = batch.write().or_poisoned();
                 batch.take().unwrap().into_inner().expect("lock poisoned")
-            };
+            });
             // TODO: Should we skip the effects if it's panicking?
             for effect in effects {
                 effect.update_if_necessary();
@@ -168,15 +168,15 @@ pub fn batch<T>(f: impl FnOnce() -> T) -> T {
         }
     }
     let mut execute_on_drop = None;
-    {
-        let mut batch = inner::BATCH.write().or_poisoned();
+    inner::BATCH.with(|batch| {
+        let mut batch = batch.write().or_poisoned();
         if batch.is_none() {
             execute_on_drop = Some(ExecuteOnDrop);
         } else {
             // Nested batching has no effect.
         }
         *batch = Some(batch.take().unwrap_or_default());
-    }
+    });
     let ret = f();
     drop(execute_on_drop);
     ret
@@ -200,10 +200,12 @@ mod inner {
         thread::{self, ThreadId},
     };
 
-    /// Only the [super::batch] function ever writes to the outer RwLock.
-    /// While the effects will write to the inner one.
-    pub(super) static BATCH: RwLock<Option<RwLock<IndexSet<AnySubscriber>>>> =
-        RwLock::new(None);
+    thread_local! {
+        /// Only the [super::batch] function ever writes to the outer RwLock.
+        /// While the effects will write to the inner one.
+        pub(super) static BATCH: RwLock<Option<RwLock<IndexSet<AnySubscriber>>>> =
+            RwLock::new(None);
+    }
 
     /// Handles subscription logic for effects.
     ///
@@ -320,15 +322,19 @@ mod inner {
                 ReactiveNodeState::Dirty => true,
             };
 
-            {
-                if let Some(batch) = &*BATCH.read().or_poisoned() {
+            if let Some(needs_update) = BATCH.with(|batch| {
+                if let Some(batch) = &*batch.read().or_poisoned() {
                     let mut batch = batch.write().or_poisoned();
                     let subscriber =
                         self.read().or_poisoned().any_subscriber.clone();
 
                     batch.insert(subscriber);
-                    return needs_update;
+                    Some(needs_update)
+                } else {
+                    None
                 }
+            }) {
+                return needs_update;
             }
 
             if needs_update {
