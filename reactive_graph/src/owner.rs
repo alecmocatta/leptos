@@ -530,18 +530,25 @@ impl Drop for OwnerInner {
 
         let nodes = mem::take(&mut self.nodes);
         if !nodes.is_empty() {
+            // Node destructors can clean up nested owners and re-enter the arena.
+            // Remove under the lock, then drop the values after releasing it.
             #[cfg(not(feature = "sandboxed-arenas"))]
-            Arena::with_mut(|arena| {
-                for node in nodes {
-                    _ = arena.remove(node);
-                }
-            });
+            drop(Arena::with_mut(|arena| {
+                nodes
+                    .into_iter()
+                    .filter_map(|node| arena.remove(node))
+                    .collect::<Vec<_>>()
+            }));
             #[cfg(feature = "sandboxed-arenas")]
             {
-                let mut arena = self.arena.write().or_poisoned();
-                for node in nodes {
-                    _ = arena.remove(node);
-                }
+                let removed = {
+                    let mut arena = self.arena.write().or_poisoned();
+                    nodes
+                        .into_iter()
+                        .filter_map(|node| arena.remove(node))
+                        .collect::<Vec<_>>()
+                };
+                drop(removed);
             }
         }
     }
@@ -571,19 +578,26 @@ impl Cleanup for RwLock<OwnerInner> {
         }
 
         if !nodes.is_empty() {
+            // Node destructors can clean up nested owners and re-enter the arena.
+            // Remove under the lock, then drop the values after releasing it.
             #[cfg(not(feature = "sandboxed-arenas"))]
-            Arena::with_mut(|arena| {
-                for node in nodes {
-                    _ = arena.remove(node);
-                }
-            });
+            drop(Arena::with_mut(|arena| {
+                nodes
+                    .into_iter()
+                    .filter_map(|node| arena.remove(node))
+                    .collect::<Vec<_>>()
+            }));
             #[cfg(feature = "sandboxed-arenas")]
             {
                 let arena = self.read().or_poisoned().arena.clone();
-                let mut arena = arena.write().or_poisoned();
-                for node in nodes {
-                    _ = arena.remove(node);
-                }
+                let removed = {
+                    let mut arena = arena.write().or_poisoned();
+                    nodes
+                        .into_iter()
+                        .filter_map(|node| arena.remove(node))
+                        .collect::<Vec<_>>()
+                };
+                drop(removed);
             }
         }
     }

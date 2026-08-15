@@ -1,6 +1,6 @@
 use reactive_graph::{
     computed::Memo,
-    owner::{on_cleanup, Owner},
+    owner::{on_cleanup, Owner, StoredValue},
     signal::{RwSignal, Trigger},
     traits::{Dispose, GetUntracked, Track},
 };
@@ -85,4 +85,17 @@ fn leak_on_dispose() {
     memo.dispose();
 
     assert!(weak.upgrade().is_none()); // Should have been dropped.
+}
+
+#[test]
+fn cleanup_drops_nested_owner_without_deadlocking() {
+    let nested_owner = Owner::new();
+    nested_owner.with(|| _ = RwSignal::new(()));
+
+    // The nested owner is not a child of `owner`: it is owned by one of
+    // `owner`'s arena values. Dropping that value re-enters arena cleanup.
+    let owner = Owner::new();
+    owner.with(|| _ = StoredValue::new(nested_owner));
+
+    owner.cleanup();
 }
